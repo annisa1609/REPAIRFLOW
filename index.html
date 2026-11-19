@@ -26,7 +26,6 @@
   </header>
 
   <main>
-    <!-- ============ BERANDA / BUAT LAPORAN ============ -->
     <section id="page-report" class="page">
       <section class="hero">
         <div class="hero-sky" aria-hidden="true"><span class="moon"></span></div>
@@ -117,7 +116,6 @@
       </div>
     </section>
 
-    <!-- ============ MASUK / DAFTAR WARGA ============ -->
     <section id="page-auth" class="page wrap page-wrap" hidden>
       <div class="auth-wrap panel">
         <div class="auth-side">
@@ -146,7 +144,6 @@
       </div>
     </section>
 
-    <!-- ============ CEK LAPORAN ============ -->
     <section id="page-track" class="page wrap page-wrap" hidden>
       <div class="page-title"><span class="eyebrow">Transparansi laporan</span><h1>Cek status laporan</h1><p>Masukkan nomor laporan yang muncul setelah pengiriman.</p></div>
       <div class="panel track-panel"><label>Nomor laporan<input id="trackingCode" placeholder="Contoh: RF-20261117-123456"></label><button class="btn btn-primary" id="trackBtn">Cari laporan</button></div>
@@ -157,7 +154,6 @@
       </div>
     </section>
 
-    <!-- ============ AREA PENGELOLA (tidak ada tombol di menu) ============ -->
     <section id="page-admin" class="page wrap page-wrap" hidden>
       <div id="adminLogin" class="login-card panel">
         <span class="eyebrow">Akses terbatas</span><h1>Gerbang Pengelola</h1><p>Khusus petugas yang berwenang.</p>
@@ -202,5 +198,56 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDC6Gjp5-j2O3MWyfXj9qDQL9h52j5lVKY",
+      authDomain: "repairflow-f4c95.firebaseapp.com",
+      projectId: "repairflow-f4c95",
+      storageBucket: "repairflow-f4c95.firebasestorage.app",
+      messagingSenderId: "502108152501",
+      appId: "1:502108152501:web:ba62544a526ec029fbd4fc"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Fungsi simpan - namanya disamain sama koleksi di Firebase kamu
+    window.simpanKeFirebase = async function(nama, urgensi, anggaran) {
+      try {
+        await addDoc(collection(db, "isi fasilitas"), {
+          nama: nama,
+          urgensi: urgensi,
+          anggaran: anggaran,
+          tanggal: new Date()
+        });
+        console.log("Berhasil tersimpan ke Firebase");
+      } catch (e) {
+        console.error("Gagal simpan Firebase:", e);
+      }
+    };
+
+    // Otomatis kirim ke Firebase saat form laporan di-submit
+    const form = document.getElementById('reportForm');
+    if (form) {
+      form.addEventListener('submit', function() {
+        const nama = document.getElementById('facilityName')?.value || "";
+        const jenis = document.getElementById('facilityType')?.value || "";
+        const deskripsi = document.getElementById('description')?.value || "";
+        const alamat = document.getElementById('streetAddress')?.value || "";
+        const lat = document.getElementById('latitude')?.value || "";
+        const lng = document.getElementById('longitude')?.value || "";
+        if (nama) {
+          window.simpanKeFirebase(
+            nama + " - " + jenis,
+            deskripsi + " | Alamat: " + alamat + " | Lat: " + lat + ", Lng: " + lng,
+            0
+          );
+        }
+      });
+    }
+  </script>
 </body>
 </html>
