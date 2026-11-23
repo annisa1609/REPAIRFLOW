@@ -9,6 +9,23 @@ const LOCK_KEY = "rf_lock_v1";
 const STAFF_SALT = "repairflow-medan::v2";
 const STAFF_ITER = 150000;
 const STAFF_HASH = "ea0e0ef38d4a6fb6ed452c2ae476b6fe95f2ce8dd514c59c0c77cce70231f67e";
+// ===== Istilah status: HARUS sama persis dengan flowchart jurnal =====
+// Dikirim -> Diterima -> Menunggu Prioritas / Diperbaiki / Ditolak
+// Jika istilah di flowchart Anda berbeda, ubah nilai di sini saja (satu tempat).
+const ST = {SENT:"Dikirim", ACC:"Diterima", WAIT:"Menunggu Prioritas", FIX:"Diperbaiki", REJ:"Ditolak"};
+const ST_ALL = [ST.SENT, ST.ACC, ST.WAIT, ST.FIX, ST.REJ];
+const ST_OLD = {"Menunggu":ST.SENT, "Ditunda":ST.WAIT};   // migrasi data lama di browser
+const ST_CLASS = {[ST.SENT]:"", [ST.ACC]:"accept", [ST.WAIT]:"wait", [ST.FIX]:"done", [ST.REJ]:"reject"};
+function statusClass(s){return ST_CLASS[s]||""}
+// Skala urgensi 1-5 (dipakai pada dropdown, panduan, dan tabel SAW)
+const URGENCY = [
+  {v:1, label:"Sangat rendah", desc:"Kerusakan ringan/estetika, tidak mengganggu fungsi maupun keselamatan."},
+  {v:2, label:"Rendah", desc:"Fungsi sedikit terganggu, tidak ada risiko keselamatan."},
+  {v:3, label:"Sedang", desc:"Mengganggu kenyamanan atau fungsi, risiko keselamatan kecil."},
+  {v:4, label:"Tinggi", desc:"Berisiko menimbulkan kecelakaan atau mengganggu lalu lintas/aktivitas warga."},
+  {v:5, label:"Sangat tinggi", desc:"Membahayakan keselamatan langsung atau fasilitas tidak dapat digunakan sama sekali."}
+];
+function urgencyText(v){const u=URGENCY.find(x=>x.v===Number(v));return u?`${u.v} - ${u.label}`:"-"}
 let reports = loadReports();
 let userMap, adminMap, userMarker, adminMarkers = [], selectedReviewId = null;
 let pendingPhoto = "";
@@ -30,7 +47,17 @@ function clearAttempts(scope){setLock(scope,{n:0,until:0})}
 function loadUsers(){try{return JSON.parse(localStorage.getItem(USERS_KEY)||"[]")}catch(e){return []}}
 function saveUsers(u){localStorage.setItem(USERS_KEY,JSON.stringify(u))}
 function currentUser(){const id=localStorage.getItem(SESSION_KEY);return id?loadUsers().find(u=>u.id===id)||null:null}
-function loadReports(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]")}catch(e){return []}}
+function loadReports(){
+  try{
+    const list=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");
+    list.forEach(r=>{if(ST_OLD[r.status])r.status=ST_OLD[r.status];if(r.decision==="DIPERBAIKI")r.decision=ST.FIX;if(r.decision==="DITUNDA")r.decision=ST.WAIT});
+    // Pembersihan permanen: 2 laporan uji dihapus dari browser (admin + pengguna memakai satu sumber data yang sama)
+    const PURGE=["RF-20261122-270532","RF-20261117-818762"];
+    const kept=list.filter(r=>!PURGE.includes(String(r.id)));
+    if(kept.length!==list.length)localStorage.setItem(STORAGE_KEY,JSON.stringify(kept));
+    return kept;
+  }catch(e){return []}
+}
 function saveReports(){localStorage.setItem(STORAGE_KEY,JSON.stringify(reports));updatePublicStats()}
 function escapeHTML(value=""){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function rupiah(value){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(Number(value)||0)}
@@ -52,8 +79,8 @@ function scrollToSec(id){
   if(document.getElementById("page-report").hidden){showPage("report");setTimeout(go,150)}else go();
 }
 function publicCounts(){
-  const c=st=>reports.filter(r=>st.includes(r.status)).length;
-  return {total:reports.length,new:c(["Menunggu"]),ver:c(["Diterima","Diperbaiki","Ditunda"]),rej:c(["Ditolak"]),done:c(["Diperbaiki"])};
+  const c=st=>reports.filter(r=>r.status===st).length;
+  return {total:reports.length,sent:c(ST.SENT),acc:c(ST.ACC),wait:c(ST.WAIT),done:c(ST.FIX),rej:c(ST.REJ)};
 }
 let shownStats={};
 function updatePublicStats(){
@@ -126,7 +153,7 @@ function renderMyReports(){
   box.hidden=false;
   const mine=reports.filter(r=>r.ownerId===u.id);
   if(!mine.length){list.innerHTML='<div class="empty-state">Kamu belum mengirim laporan.</div>';return}
-  list.innerHTML=mine.map(r=>{const c=r.status==="Diterima"?"accept":r.status==="Ditolak"?"reject":r.status==="Diperbaiki"?"done":"";
+  list.innerHTML=mine.map(r=>{const c=statusClass(r.status);
     return `<article class="report-card"><img class="report-thumb" src="${r.photo}" alt="Foto kerusakan"><div><h3>${escapeHTML(r.name)} <span class="status ${c}">${escapeHTML(r.status)}</span></h3><p>${escapeHTML(r.type)} · ${escapeHTML(r.address)}</p><p>${new Date(r.createdAt).toLocaleString("id-ID")} · ${escapeHTML(r.id)}</p></div><div class="report-actions"><button class="btn btn-outline small-btn" onclick="lookupCode('${r.id}')">Lihat status</button></div></article>`}).join("");
 }
 function lookupCode(code){document.getElementById("trackingCode").value=code;document.getElementById("trackBtn").click();window.scrollTo({top:0,behavior:"smooth"})}
@@ -177,7 +204,7 @@ document.getElementById("reportForm").addEventListener("submit",e=>{
   if(!lat||!lng){alert("Tentukan lokasi kerusakan melalui GPS atau klik peta.");return}
   const now=new Date();
   const code="RF-"+now.getFullYear()+String(now.getMonth()+1).padStart(2,"0")+String(now.getDate()).padStart(2,"0")+"-"+Math.floor(100000+Math.random()*900000);
-  const report={id:code,name:document.getElementById("facilityName").value.trim(),type:document.getElementById("facilityType").value,description:document.getElementById("description").value.trim(),photo:pendingPhoto,address:document.getElementById("streetAddress").value.trim(),lat,lng,createdAt:now.toISOString(),ownerId:owner.id,ownerName:owner.name,status:"Menunggu",urgency:null,cost:null,adminNote:"",score:null,rank:null,decision:null};
+  const report={id:code,name:document.getElementById("facilityName").value.trim(),type:document.getElementById("facilityType").value,description:document.getElementById("description").value.trim(),photo:pendingPhoto,address:document.getElementById("streetAddress").value.trim(),lat,lng,createdAt:now.toISOString(),ownerId:owner.id,ownerName:owner.name,status:ST.SENT,urgency:null,cost:null,adminNote:"",score:null,rank:null,decision:null};
   reports.unshift(report);
   try{saveReports()}catch(err){reports.shift();alert("Penyimpanan browser penuh. Coba gunakan foto yang lebih kecil.");return}
   document.getElementById("submitMessage").className="message success";
@@ -190,8 +217,8 @@ document.getElementById("trackBtn").addEventListener("click",()=>{
   const code=document.getElementById("trackingCode").value.trim().toUpperCase();
   const r=reports.find(x=>x.id.toUpperCase()===code),out=document.getElementById("trackingResult");
   if(!r){out.innerHTML='<div class="panel track-result">Nomor laporan tidak ditemukan. Periksa kembali nomor laporan.</div>';return}
-  const statusClass=r.status==="Diterima"?"accept":r.status==="Ditolak"?"reject":r.status==="Diperbaiki"?"done":"";
-  out.innerHTML=`<div class="panel track-result"><div class="panel-head"><div><h2>${escapeHTML(r.name)}</h2><p>${escapeHTML(r.id)}</p></div><span class="status ${statusClass}">${escapeHTML(r.status)}</span></div><p><b>Waktu:</b> ${new Date(r.createdAt).toLocaleString("id-ID")}</p><p><b>Lokasi:</b> ${escapeHTML(r.address)}</p><p><b>Catatan admin:</b> ${escapeHTML(r.adminNote||"Belum ada catatan.")}</p>${r.decision?`<p><b>Hasil prioritas:</b> ${escapeHTML(r.decision)}</p>`:""}</div>`;
+  const sc=statusClass(r.status);
+  out.innerHTML=`<div class="panel track-result"><div class="panel-head"><div><h2>${escapeHTML(r.name)}</h2><p>${escapeHTML(r.id)}</p></div><span class="status ${sc}">${escapeHTML(r.status)}</span></div><p><b>Waktu:</b> ${new Date(r.createdAt).toLocaleString("id-ID")}</p><p><b>Lokasi:</b> ${escapeHTML(r.address)}</p><p><b>Catatan admin:</b> ${escapeHTML(r.adminNote||"Belum ada catatan.")}</p>${r.decision?`<p><b>Hasil prioritas:</b> ${escapeHTML(r.decision)}</p>`:""}</div>`;
 });
 document.getElementById("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();const msg=document.getElementById("loginMessage");
@@ -211,10 +238,7 @@ function refreshAdmin(){
   const logged=staffLogged();
   document.getElementById("adminLogin").hidden=logged;document.getElementById("adminDashboard").hidden=!logged;
   if(!logged)return;
-  document.getElementById("statTotal").textContent=reports.length;
-  document.getElementById("statPending").textContent=reports.filter(r=>r.status==="Menunggu").length;
-  document.getElementById("statAccepted").textContent=reports.filter(r=>r.status==="Diterima"||r.status==="Diperbaiki"||r.status==="Ditunda").length;
-  document.getElementById("statRejected").textContent=reports.filter(r=>r.status==="Ditolak").length;
+  renderAdminStats();
   renderAdminReports();renderAdminMap();renderSaw();
 }
 document.getElementById("reportFilter").addEventListener("change",renderAdminReports);
@@ -222,30 +246,41 @@ function renderAdminReports(){
   const filter=document.getElementById("reportFilter").value;
   const list=reports.filter(r=>filter==="all"||r.status===filter),box=document.getElementById("adminReports");
   if(!list.length){box.innerHTML='<div class="empty-state">Belum ada laporan pada kategori ini.</div>';return}
-  box.innerHTML=list.map(r=>`<article class="report-card"><img class="report-thumb" src="${r.photo}" alt="Foto kerusakan"><div><h3>${escapeHTML(r.name)} <span class="status ${r.status==="Diterima"?"accept":r.status==="Ditolak"?"reject":""}">${escapeHTML(r.status)}</span></h3><p>${escapeHTML(r.type)} · ${escapeHTML(r.address)}</p><p>${new Date(r.createdAt).toLocaleString("id-ID")} · ${escapeHTML(r.id)}</p></div><div class="report-actions"><button class="btn btn-outline small-btn" onclick="openReview('${r.id}')">Periksa detail</button></div></article>`).join("");
+  box.innerHTML=list.map(r=>`<article class="report-card"><img class="report-thumb" src="${r.photo}" alt="Foto kerusakan"><div><h3>${escapeHTML(r.name)} <span class="status ${statusClass(r.status)}">${escapeHTML(r.status)}</span></h3><p>${escapeHTML(r.type)} · ${escapeHTML(r.address)}</p><p>${new Date(r.createdAt).toLocaleString("id-ID")} · ${escapeHTML(r.id)}</p></div><div class="report-actions"><button class="btn btn-outline small-btn" onclick="openReview('${r.id}')">Periksa detail</button></div></article>`).join("");
 }
 function openReview(id){
   const r=reports.find(x=>x.id===id);if(!r)return;selectedReviewId=id;
   document.getElementById("reviewContent").innerHTML=`<img class="review-photo" src="${r.photo}" alt="Foto kerusakan"><h3>${escapeHTML(r.name)}</h3><p>${escapeHTML(r.description)}</p><div class="review-grid"><div><small>Jenis fasilitas</small><b>${escapeHTML(r.type)}</b></div><div><small>Waktu laporan</small><b>${new Date(r.createdAt).toLocaleString("id-ID")}</b></div><div><small>Alamat / nama jalan</small><b>${escapeHTML(r.address)}</b></div><div><small>Koordinat</small><b>${r.lat}, ${r.lng}</b></div></div><a class="review-map-link" target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lng}#map=18/${r.lat}/${r.lng}">Buka titik lokasi di peta ↗</a>`;
   let actions="";
-  if(r.status==="Menunggu"){
-    actions=`<label>Urgensi (1–5)<select id="reviewUrgency"><option value="">Pilih urgensi</option><option value="1">1 - Sangat rendah</option><option value="2">2 - Rendah</option><option value="3">3 - Sedang</option><option value="4">4 - Tinggi</option><option value="5">5 - Sangat tinggi</option></select></label><label>Estimasi biaya perbaikan (Rp)<input id="reviewCost" type="number" min="1" placeholder="Contoh: 2500000"></label><label class="wide">Catatan admin<textarea id="reviewNote" rows="2" placeholder="Catatan pemeriksaan..."></textarea></label><button class="btn btn-primary" onclick="acceptReport()">Terima & simpan kriteria</button><button class="btn btn-outline" onclick="rejectReport()">Tolak laporan</button>`;
-  }else actions=`<p class="hint wide">Status saat ini: ${escapeHTML(r.status)}. ${r.status==="Diterima"?"Kriteria SAW dapat diperbarui dengan menerima kembali laporan ini setelah pemeriksaan.":""}</p><button class="btn btn-outline" onclick="closeReview()">Tutup</button>`;
+  const editable=[ST.SENT,ST.ACC,ST.WAIT].includes(r.status);
+  if(editable){
+    const opts=URGENCY.slice().reverse().map(u=>`<option value="${u.v}"${Number(r.urgency)===u.v?" selected":""}>${u.v} - ${u.label}</option>`).join("");
+    actions=`<label>Tingkat urgensi (skala 1-5)<select id="reviewUrgency" onchange="showUrgencyHint()"><option value="">-- Pilih tingkat urgensi --</option>${opts}</select></label><label>Estimasi biaya perbaikan (Rp)<input id="reviewCost" type="number" min="1" placeholder="Contoh: 2500000" value="${r.cost||""}"></label><div class="urgency-hint wide" id="urgencyHint">Pilih tingkat urgensi untuk melihat keterangannya. <b>5 = paling mendesak</b>, 1 = paling tidak mendesak.</div><details class="wide scale-guide"><summary>Lihat panduan skala urgensi</summary>${urgencyGuideTable()}</details><label class="wide">Catatan admin<textarea id="reviewNote" rows="2" placeholder="Catatan pemeriksaan...">${escapeHTML(r.adminNote||"")}</textarea></label><button class="btn btn-primary" onclick="acceptReport()">Terima &amp; simpan kriteria</button><button class="btn btn-outline" onclick="rejectReport()">Tolak laporan</button>`;
+  }else actions=`<p class="hint wide">Status saat ini: <b>${escapeHTML(r.status)}</b>${r.urgency?` · Urgensi ${escapeHTML(urgencyText(r.urgency))} · Biaya ${rupiah(r.cost)}`:""}.</p><button class="btn btn-outline" onclick="closeReview()">Tutup</button>`;
   document.getElementById("reviewActions").innerHTML=actions;
+  if(editable)showUrgencyHint();
   document.getElementById("reviewModal").hidden=false;
+}
+function urgencyGuideTable(){
+  return `<table class="data-table scale-table"><thead><tr><th>Skala</th><th>Kategori</th><th>Keterangan</th></tr></thead><tbody>${URGENCY.slice().reverse().map(u=>`<tr><td><b>${u.v}</b></td><td>${u.label}</td><td>${u.desc}</td></tr>`).join("")}</tbody></table>`;
+}
+function showUrgencyHint(){
+  const v=Number(document.getElementById("reviewUrgency").value),box=document.getElementById("urgencyHint"),u=URGENCY.find(x=>x.v===v);
+  box.innerHTML=u?`<b>${u.v} - ${u.label}:</b> ${u.desc}`:'Pilih tingkat urgensi untuk melihat keterangannya. <b>5 = paling mendesak</b>, 1 = paling tidak mendesak.';
 }
 function closeReview(){document.getElementById("reviewModal").hidden=true;selectedReviewId=null}
 document.getElementById("closeReview").addEventListener("click",closeReview);
 document.getElementById("reviewModal").addEventListener("click",e=>{if(e.target.id==="reviewModal")closeReview()});
 function acceptReport(){
   const r=reports.find(x=>x.id===selectedReviewId),urgency=Number(document.getElementById("reviewUrgency").value),cost=Number(document.getElementById("reviewCost").value);
-  if(!urgency||cost<=0){alert("Isi tingkat urgensi dan estimasi biaya yang valid.");return}
-  r.status="Diterima";r.urgency=urgency;r.cost=cost;r.adminNote=document.getElementById("reviewNote").value.trim();r.score=null;r.rank=null;r.decision=null;saveReports();closeReview();refreshAdmin();
+  if(!urgency||urgency<1||urgency>5){alert("Pilih tingkat urgensi pada skala 1-5.");return}
+  if(!(cost>0)){alert("Isi estimasi biaya perbaikan yang valid (lebih dari 0).");return}
+  r.status=ST.ACC;r.urgency=urgency;r.cost=cost;r.adminNote=document.getElementById("reviewNote").value.trim();r.score=null;r.rank=null;r.decision=null;saveReports();closeReview();refreshAdmin();
 }
 function rejectReport(){
   const r=reports.find(x=>x.id===selectedReviewId);if(!r)return;
   const note=prompt("Masukkan alasan penolakan laporan:");if(note===null)return;
-  r.status="Ditolak";r.adminNote=note;saveReports();closeReview();refreshAdmin();
+  r.status=ST.REJ;r.adminNote=note;r.score=null;r.rank=null;r.decision=null;saveReports();closeReview();refreshAdmin();
 }
 function renderAdminMap(){
   if(!window.L)return;
@@ -254,40 +289,85 @@ function renderAdminMap(){
   reports.filter(r=>r.lat&&r.lng).forEach(r=>{const marker=L.marker([r.lat,r.lng]).addTo(adminMap).bindPopup(`<b>${escapeHTML(r.name)}</b><br>${escapeHTML(r.address)}<br>Status: ${escapeHTML(r.status)}`);adminMarkers.push(marker)});
   setTimeout(()=>adminMap.invalidateSize(),100);
 }
-document.getElementById("calculateBtn").addEventListener("click",()=>{
+const W_URGENCY=0.6, W_COST=0.4;
+function runSaw(){
   const budget=Number(document.getElementById("budgetInput").value);
-  if(!Number.isFinite(budget)||budget<0){alert("Masukkan anggaran yang valid.");return}
-  const eligible=reports.filter(r=>r.status==="Diterima"&&r.urgency>0&&r.cost>0);
-  if(!eligible.length){alert("Belum ada laporan diterima yang memiliki urgensi dan biaya.");return}
+  if(!Number.isFinite(budget)||budget<0){alert("Masukkan anggaran yang valid.");return false}
+  const eligible=reports.filter(r=>[ST.ACC,ST.WAIT,ST.FIX].includes(r.status)&&r.urgency>0&&r.cost>0);
+  if(!eligible.length){alert("Belum ada laporan berstatus Diterima yang memiliki urgensi dan biaya.");return false}
+  eligible.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  eligible.forEach((r,i)=>{r.alt="A"+(i+1)});
   const maxUrgency=Math.max(...eligible.map(r=>r.urgency)),minCost=Math.min(...eligible.map(r=>r.cost));
-  eligible.forEach(r=>{r.normUrgency=r.urgency/maxUrgency;r.normCost=minCost/r.cost;r.score=.6*r.normUrgency+.4*r.normCost});
-  eligible.sort((a,b)=>b.score-a.score);
+  eligible.forEach(r=>{r.normUrgency=r.urgency/maxUrgency;r.normCost=minCost/r.cost;r.score=W_URGENCY*r.normUrgency+W_COST*r.normCost});
+  const ranked=eligible.slice().sort((a,b)=>b.score-a.score);
   let used=0,blocked=false;
-  eligible.forEach((r,i)=>{
+  ranked.forEach((r,i)=>{
     r.rank=i+1;
-    if(!blocked&&used+r.cost<=budget){r.decision="DIPERBAIKI";r.status="Diperbaiki";used+=r.cost}
-    else{blocked=true;r.decision="DITUNDA";r.status="Ditunda"}
+    if(!blocked&&used+r.cost<=budget){r.decision=ST.FIX;r.status=ST.FIX;used+=r.cost}
+    else{blocked=true;r.decision=ST.WAIT;r.status=ST.WAIT}
   });
-  // Reports previously ranked are recalculated together; accepted entries are no longer eligible after assignment.
-  // Restore all calculated items to accepted state before next calculation so changing budget can recalculate.
-  eligible.forEach(r=>{r.status="Diterima"});
-  eligible.forEach(r=>{r.status=r.decision==="DIPERBAIKI"?"Diperbaiki":"Ditunda"});
   saveReports();renderSaw();refreshAdminStatsOnly();
-});
-function refreshAdminStatsOnly(){
-  document.getElementById("statTotal").textContent=reports.length;
-  document.getElementById("statPending").textContent=reports.filter(r=>r.status==="Menunggu").length;
-  document.getElementById("statAccepted").textContent=reports.filter(r=>["Diterima","Diperbaiki","Ditunda"].includes(r.status)).length;
-  document.getElementById("statRejected").textContent=reports.filter(r=>r.status==="Ditolak").length;
-  renderAdminReports();renderAdminMap();
+  return true;
 }
+document.getElementById("calculateBtn").addEventListener("click",runSaw);
+function renderAdminStats(){
+  const c=s=>reports.filter(r=>r.status===s).length;
+  document.getElementById("statTotal").textContent=reports.length;
+  document.getElementById("statSent").textContent=c(ST.SENT);
+  document.getElementById("statAccepted").textContent=c(ST.ACC);
+  document.getElementById("statWait").textContent=c(ST.WAIT);
+  document.getElementById("statFixed").textContent=c(ST.FIX);
+  document.getElementById("statRejected").textContent=c(ST.REJ);
+}
+function refreshAdminStatsOnly(){renderAdminStats();renderAdminReports();renderAdminMap()}
+function fmt4(n){return Number(n).toFixed(4).replace(".",",")}
 function renderSaw(){
   const box=document.getElementById("sawResults");
-  const calculated=reports.filter(r=>r.rank).sort((a,b)=>a.rank-b.rank);
-  if(!calculated.length){box.innerHTML='<p class="empty-state">Belum ada hasil perhitungan SAW.</p>';return}
-  const total=calculated.filter(r=>r.decision==="DIPERBAIKI").reduce((s,r)=>s+r.cost,0);
-  box.innerHTML=`<p class="hint">Total anggaran terpakai: <b>${rupiah(total)}</b> dari ${rupiah(Number(document.getElementById("budgetInput").value))}</p><table class="data-table"><thead><tr><th>Rank</th><th>Fasilitas</th><th>Urgensi</th><th>Biaya</th><th>Nilai SAW</th><th>Keputusan</th></tr></thead><tbody>${calculated.map(r=>`<tr><td>${r.rank}</td><td><b>${escapeHTML(r.name)}</b><br><span class="hint">${escapeHTML(r.address)}</span></td><td>${r.urgency}</td><td>${rupiah(r.cost)}</td><td>${r.score.toFixed(4)}</td><td><span class="status ${r.decision==="DIPERBAIKI"?"accept":"reject"}">${r.decision}</span></td></tr>`).join("")}</tbody></table>`;
+  const calc=reports.filter(r=>r.rank&&r.alt);
+  if(!calc.length){box.innerHTML='<p class="empty-state">Belum ada hasil perhitungan. Terima laporan, isi urgensi serta biaya, lalu klik "Hitung Prioritas SAW".</p>';return}
+  const byAlt=calc.slice().sort((a,b)=>Number(a.alt.slice(1))-Number(b.alt.slice(1)));
+  const byRank=calc.slice().sort((a,b)=>a.rank-b.rank);
+  const maxU=Math.max(...byAlt.map(r=>r.urgency)),minC=Math.min(...byAlt.map(r=>r.cost));
+  const budget=Number(document.getElementById("budgetInput").value);
+  const total=byRank.filter(r=>r.decision===ST.FIX).reduce((s,r)=>s+r.cost,0);
+  const tableX=`<h3 class="saw-title">1. Matriks Keputusan Awal (X)</h3><p class="hint">Nilai asli tiap alternatif. C1 = Urgensi (benefit, bobot ${W_URGENCY.toString().replace(".",",")}); C2 = Estimasi biaya (cost, bobot ${W_COST.toString().replace(".",",")}).</p><div class="table-wrap"><table class="data-table saw-table"><thead><tr><th>Alt.</th><th>Fasilitas</th><th>C1 Urgensi (1-5)</th><th>C2 Biaya (Rp)</th></tr></thead><tbody>${byAlt.map(r=>`<tr><td><b>${r.alt}</b></td><td>${escapeHTML(r.name)}</td><td>${r.urgency}</td><td>${rupiah(r.cost)}</td></tr>`).join("")}<tr class="saw-ref"><td colspan="2">Nilai acuan</td><td>max C1 = ${maxU}</td><td>min C2 = ${rupiah(minC)}</td></tr></tbody></table></div>`;
+  const tableR=`<h3 class="saw-title">2. Matriks Ternormalisasi (R)</h3><p class="hint">Benefit: r = x / max(x). Cost: r = min(x) / x.</p><div class="table-wrap"><table class="data-table saw-table"><thead><tr><th>Alt.</th><th>Fasilitas</th><th>r1 = C1 / ${maxU}</th><th>r2 = ${rupiah(minC)} / C2</th></tr></thead><tbody>${byAlt.map(r=>`<tr><td><b>${r.alt}</b></td><td>${escapeHTML(r.name)}</td><td>${fmt4(r.normUrgency)}</td><td>${fmt4(r.normCost)}</td></tr>`).join("")}</tbody></table></div>`;
+  const tableV=`<h3 class="saw-title">3. Hasil Peringkat Akhir (V<sub>i</sub>)</h3><p class="hint">V<sub>i</sub> = (${W_URGENCY.toString().replace(".",",")} x r1) + (${W_COST.toString().replace(".",",")} x r2). Total anggaran terpakai: <b>${rupiah(total)}</b> dari ${rupiah(budget)}.</p><div class="table-wrap"><table class="data-table saw-table"><thead><tr><th>Rank</th><th>Alt.</th><th>Fasilitas</th><th>Urgensi</th><th>Biaya</th><th>Perhitungan V<sub>i</sub></th><th>Nilai V<sub>i</sub></th><th>Status</th></tr></thead><tbody>${byRank.map(r=>`<tr><td><b>${r.rank}</b></td><td>${r.alt}</td><td><b>${escapeHTML(r.name)}</b><br><span class="hint">${escapeHTML(r.address)}</span></td><td>${r.urgency}</td><td>${rupiah(r.cost)}</td><td class="calc-cell">${W_URGENCY.toString().replace(".",",")}x${fmt4(r.normUrgency)} + ${W_COST.toString().replace(".",",")}x${fmt4(r.normCost)}</td><td><b>${fmt4(r.score)}</b></td><td><span class="status ${statusClass(r.decision)}">${escapeHTML(r.decision)}</span></td></tr>`).join("")}</tbody></table></div>`;
+  box.innerHTML=tableX+tableR+tableV;
 }
+
+// ===== Data simulasi (koordinat nyata di Kota Medan) =====
+function sampleSvg(label,c1,c2,icon){
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="640" height="420" fill="url(#g)"/><rect y="300" width="640" height="120" fill="#2b2f2e"/><path d="M0 360h640" stroke="#ffc933" stroke-width="6" stroke-dasharray="40 30"/><text x="320" y="190" font-size="110" text-anchor="middle">${icon}</text><text x="320" y="262" font-size="30" font-family="Arial,sans-serif" font-weight="700" text-anchor="middle" fill="#ffffff">${label}</text></svg>`;
+  return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
+}
+const SIM_DATA=[
+  // Data ilustrasi ini SAMA dengan Tabel 3 jurnal (A1-A5). Urutan daysAgo menentukan kode alternatif (A1 = laporan paling lama).
+  {id:"RF-SIM-001",name:"Lubang di jalan utama",type:"Jalan",description:"Lubang berdiameter sekitar 1 meter di badan jalan utama, berbahaya bagi pengendara sepeda motor terutama pada malam hari.",address:"Jl. Sisingamangaraja, dekat Simpang Limun, Medan",lat:3.570650,lng:98.680700,icon:"🕳️",c:["#9db4c0","#5d7a8a"],daysAgo:9,status:ST.ACC,urgency:5,cost:15000000,note:"Lokasi padat kendaraan, lubang membahayakan pengendara."},
+  {id:"RF-SIM-002",name:"Lampu jalan mati",type:"Lampu jalan",description:"Satu tiang lampu penerangan jalan mati sehingga ruas jalan menjadi gelap pada malam hari.",address:"Jl. Gatot Subroto, Medan Petisah",lat:3.591700,lng:98.656000,icon:"💡",c:["#1c2b4a","#3b4f7d"],daysAgo:8,status:ST.ACC,urgency:3,cost:4000000,note:"Perlu penggantian lampu dan kabel."},
+  {id:"RF-SIM-003",name:"Saluran drainase tersumbat",type:"Drainase",description:"Parit tertutup sampah dan sedimen, air meluap ke badan jalan saat hujan deras.",address:"Jl. Setia Budi, Tanjung Sari, Medan Selayang",lat:3.549600,lng:98.646900,icon:"🌧️",c:["#a8c3a0","#5f8a63"],daysAgo:7,status:ST.ACC,urgency:4,cost:12000000,note:"Genangan sering terjadi saat hujan."},
+  {id:"RF-SIM-004",name:"Permukaan jalan retak",type:"Jalan",description:"Permukaan aspal retak memanjang dan mulai mengelupas; belum membahayakan tetapi mengurangi kenyamanan berkendara.",address:"Jl. Putri Hijau, Medan Barat",lat:3.587100,lng:98.679200,icon:"🛣️",c:["#c9b79c","#8c7355"],daysAgo:6,status:ST.ACC,urgency:2,cost:20000000,note:"Kerusakan masih ringan; dapat dijadwalkan setelah perbaikan yang lebih mendesak."},
+  {id:"RF-SIM-005",name:"Beberapa lampu jalan padam",type:"Lampu jalan",description:"Beberapa tiang lampu berturut-turut padam sehingga ruas jalan gelap dan rawan kecelakaan.",address:"Jl. S. Parman, Medan Petisah",lat:3.585500,lng:98.657900,icon:"🔦",c:["#1f3a3d","#3f6f73"],daysAgo:5,status:ST.ACC,urgency:4,cost:6000000,note:"Perlu penggantian beberapa lampu dan kabel."}
+];
+function loadSimulation(){
+  const existing=reports.filter(r=>String(r.id).startsWith("RF-SIM-")).length;
+  if(existing&&!confirm("Data simulasi sudah ada. Muat ulang (data simulasi lama diganti)?"))return;
+  reports=reports.filter(r=>!String(r.id).startsWith("RF-SIM-"));
+  const now=Date.now();
+  const sim=SIM_DATA.map(d=>({id:d.id,name:d.name,type:d.type,description:d.description,photo:sampleSvg(d.name,d.c[0],d.c[1],d.icon),address:d.address,lat:d.lat,lng:d.lng,createdAt:new Date(now-d.daysAgo*86400000).toISOString(),ownerId:"USEED",ownerName:"Warga Simulasi",status:d.status===ST.REJ?ST.REJ:d.status,urgency:d.urgency||null,cost:d.cost||null,adminNote:d.note||"",score:null,rank:null,decision:null}));
+  reports=sim.concat(reports);
+  saveReports();
+  document.getElementById("budgetInput").value=50000000;
+  runSaw();
+  refreshAdmin();
+}
+function clearSimulation(){
+  if(!confirm("Hapus semua data simulasi (RF-SIM-...)? Laporan asli tidak ikut terhapus."))return;
+  reports=reports.filter(r=>!String(r.id).startsWith("RF-SIM-"));
+  saveReports();refreshAdmin();
+}
+document.getElementById("seedBtn").addEventListener("click",loadSimulation);
+document.getElementById("unseedBtn").addEventListener("click",clearSimulation);
 // Pintu masuk pengelola tidak ada di menu: lewat alamat #petugas, atau klik simbol © di footer 3x.
 let copyClicks=0,copyTimer;
 document.getElementById("copyMark").addEventListener("click",()=>{
@@ -296,6 +376,6 @@ document.getElementById("copyMark").addEventListener("click",()=>{
 });
 window.addEventListener("hashchange",()=>{if(location.hash==="#petugas")showPage("admin")});
 document.addEventListener("DOMContentLoaded",()=>{
-  renderAuthArea();
+  renderAuthArea();updatePublicStats();
   if(location.hash==="#petugas")showPage("admin");else showPage("report");
 });
