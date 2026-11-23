@@ -26,6 +26,7 @@
   </header>
 
   <main>
+    <!-- ============ BERANDA / BUAT LAPORAN ============ -->
     <section id="page-report" class="page">
       <section class="hero">
         <div class="hero-sky" aria-hidden="true"><span class="moon"></span></div>
@@ -40,7 +41,7 @@
             <small>Contoh laporan</small>
             <b>Lampu jalan padam</b>
             <span>Jl. Sisingamangaraja, Medan</span>
-            <ol><li class="on">Dikirim</li><li class="on">Diperiksa</li><li>Diperbaiki</li></ol>
+            <ol><li class="on">Dikirim</li><li class="on">Diterima</li><li>Diperbaiki</li></ol>
           </aside>
         </div>
         <div class="hero-art" aria-hidden="true"><img src="assets/istana-maimun.jpg" onerror="this.onerror=null;this.src='assets/istana-maimun.svg'" alt=""></div>
@@ -50,11 +51,12 @@
         <div class="wrap stat-grid">
           <h2>Laporan warga<br>sejauh ini</h2>
           <div class="pub-stats" id="pubStats">
-            <div><strong data-k="total">0</strong><span>Jumlah</span></div>
-            <div><strong data-k="new">0</strong><span>Baru</span></div>
-            <div><strong data-k="ver">0</strong><span>Terverifikasi</span></div>
-            <div><strong data-k="rej">0</strong><span>Ditolak</span></div>
+            <div><strong data-k="total">0</strong><span>Total laporan</span></div>
+            <div><strong data-k="sent">0</strong><span>Dikirim</span></div>
+            <div><strong data-k="acc">0</strong><span>Diterima</span></div>
+            <div><strong data-k="wait">0</strong><span>Menunggu Prioritas</span></div>
             <div><strong data-k="done">0</strong><span>Diperbaiki</span></div>
+            <div><strong data-k="rej">0</strong><span>Ditolak</span></div>
           </div>
         </div>
       </div>
@@ -116,6 +118,7 @@
       </div>
     </section>
 
+    <!-- ============ MASUK / DAFTAR WARGA ============ -->
     <section id="page-auth" class="page wrap page-wrap" hidden>
       <div class="auth-wrap panel">
         <div class="auth-side">
@@ -144,6 +147,7 @@
       </div>
     </section>
 
+    <!-- ============ CEK LAPORAN ============ -->
     <section id="page-track" class="page wrap page-wrap" hidden>
       <div class="page-title"><span class="eyebrow">Transparansi laporan</span><h1>Cek status laporan</h1><p>Masukkan nomor laporan yang muncul setelah pengiriman.</p></div>
       <div class="panel track-panel"><label>Nomor laporan<input id="trackingCode" placeholder="Contoh: RF-20261117-123456"></label><button class="btn btn-primary" id="trackBtn">Cari laporan</button></div>
@@ -154,6 +158,7 @@
       </div>
     </section>
 
+    <!-- ============ AREA PENGELOLA (tidak ada tombol di menu) ============ -->
     <section id="page-admin" class="page wrap page-wrap" hidden>
       <div id="adminLogin" class="login-card panel">
         <span class="eyebrow">Akses terbatas</span><h1>Gerbang Pengelola</h1><p>Khusus petugas yang berwenang.</p>
@@ -164,19 +169,24 @@
         <div class="admin-heading"><div><span class="eyebrow">Panel pengelolaan</span><h1>Dashboard Pengelola</h1><p>Periksa laporan masuk sebelum menghitung prioritas perbaikan.</p></div><button class="btn btn-outline" id="logoutBtn">Keluar</button></div>
         <div class="stats-grid">
           <div class="stat-card"><span>Total laporan</span><strong id="statTotal">0</strong></div>
-          <div class="stat-card"><span>Menunggu pemeriksaan</span><strong id="statPending">0</strong></div>
+          <div class="stat-card"><span>Dikirim</span><strong id="statSent">0</strong></div>
           <div class="stat-card"><span>Diterima</span><strong id="statAccepted">0</strong></div>
+          <div class="stat-card"><span>Menunggu Prioritas</span><strong id="statWait">0</strong></div>
+          <div class="stat-card"><span>Diperbaiki</span><strong id="statFixed">0</strong></div>
           <div class="stat-card"><span>Ditolak</span><strong id="statRejected">0</strong></div>
         </div>
+        <div class="flow-legend" aria-label="Alur status laporan"><span class="status">Dikirim</span><i>&rarr;</i><span class="status accept">Diterima</span><i>&rarr;</i><span class="flow-branch"><span class="status wait">Menunggu Prioritas</span><em>/</em><span class="status done">Diperbaiki</span><em>/</em><span class="status reject">Ditolak</span></span></div>
+        <div class="sim-bar"><span><b>Data simulasi untuk screenshot jurnal:</b> 5 laporan (A1-A5, sama dengan Tabel 3 jurnal) dengan koordinat di Kota Medan.</span><div><button class="btn btn-outline small-btn" id="seedBtn" type="button">Muat data simulasi</button><button class="btn btn-outline small-btn" id="unseedBtn" type="button">Hapus data simulasi</button></div></div>
         <div class="panel admin-panel">
-          <div class="panel-head"><div><h2>Laporan masyarakat</h2><p>Periksa foto, informasi, dan lokasi laporan.</p></div><select id="reportFilter"><option value="all">Semua laporan</option><option value="Menunggu">Menunggu pemeriksaan</option><option value="Diterima">Diterima</option><option value="Ditolak">Ditolak</option></select></div>
+          <div class="panel-head"><div><h2>Laporan masyarakat</h2><p>Periksa foto, informasi, dan lokasi laporan.</p></div><select id="reportFilter"><option value="all">Semua laporan</option><option value="Dikirim">Dikirim</option><option value="Diterima">Diterima</option><option value="Menunggu Prioritas">Menunggu Prioritas</option><option value="Diperbaiki">Diperbaiki</option><option value="Ditolak">Ditolak</option></select></div>
           <div id="adminReports" class="report-list"></div>
         </div>
         <div class="panel admin-panel">
-          <div class="panel-head"><div><h2>Prioritas perbaikan - metode SAW</h2><p>Hanya laporan berstatus diterima yang dihitung.</p></div></div>
+          <div class="panel-head"><div><h2>Prioritas perbaikan - metode SAW</h2><p>Laporan berstatus Diterima (beserta hasil hitung sebelumnya) dihitung ulang setiap tombol ditekan.</p></div></div>
           <div class="budget-row"><label>Anggaran tersedia (Rp)<input id="budgetInput" type="number" min="0" value="50000000"></label><button class="btn btn-primary" id="calculateBtn">Hitung Prioritas SAW</button></div>
           <div class="formula-note"><b>Kriteria:</b> Urgensi (benefit) 60% dan estimasi biaya (cost) 40%. Sistem mengurutkan nilai SAW dari tertinggi, lalu memilih berurutan sesuai anggaran tanpa melewati peringkat yang tidak muat.</div>
-          <div id="sawResults" class="table-wrap"><p class="empty-state">Belum ada hasil perhitungan. Terima laporan dan isi urgensi serta biaya terlebih dahulu.</p></div>
+          <details class="scale-guide"><summary>Panduan skala urgensi (1-5)</summary><div id="scaleGuide"></div></details>
+          <div id="sawResults" class="saw-wrap"><p class="empty-state">Belum ada hasil perhitungan. Terima laporan dan isi urgensi serta biaya terlebih dahulu.</p></div>
         </div>
         <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2><p>Lokasi laporan yang memiliki koordinat.</p></div></div><div id="adminMap" class="map"></div></div>
       </div>
@@ -198,56 +208,6 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDC6Gjp5-j2O3MWyfXj9qDQL9h52j5lVKY",
-      authDomain: "repairflow-f4c95.firebaseapp.com",
-      projectId: "repairflow-f4c95",
-      storageBucket: "repairflow-f4c95.firebasestorage.app",
-      messagingSenderId: "502108152501",
-      appId: "1:502108152501:web:ba62544a526ec029fbd4fc"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // Fungsi simpan - namanya disamain sama koleksi di Firebase kamu
-    window.simpanKeFirebase = async function(nama, urgensi, anggaran) {
-      try {
-        await addDoc(collection(db, "isi fasilitas"), {
-          nama: nama,
-          urgensi: urgensi,
-          anggaran: anggaran,
-          tanggal: new Date()
-        });
-        console.log("Berhasil tersimpan ke Firebase");
-      } catch (e) {
-        console.error("Gagal simpan Firebase:", e);
-      }
-    };
-
-    // Otomatis kirim ke Firebase saat form laporan di-submit
-    const form = document.getElementById('reportForm');
-    if (form) {
-      form.addEventListener('submit', function() {
-        const nama = document.getElementById('facilityName')?.value || "";
-        const jenis = document.getElementById('facilityType')?.value || "";
-        const deskripsi = document.getElementById('description')?.value || "";
-        const alamat = document.getElementById('streetAddress')?.value || "";
-        const lat = document.getElementById('latitude')?.value || "";
-        const lng = document.getElementById('longitude')?.value || "";
-        if (nama) {
-          window.simpanKeFirebase(
-            nama + " - " + jenis,
-            deskripsi + " | Alamat: " + alamat + " | Lat: " + lat + ", Lng: " + lng,
-            0
-          );
-        }
-      });
-    }
-  </script>
+  <script>document.getElementById("scaleGuide").innerHTML=urgencyGuideTable();</script>
 </body>
 </html>
