@@ -89,7 +89,7 @@
         <div class="sim-bar"><span><b>Data simulasi:</b> 5 laporan A1-A5</span><div><button class="btn btn-outline small-btn" id="seedBtn" type="button">Muat data simulasi</button><button class="btn btn-outline small-btn" id="unseedBtn" type="button">Hapus data simulasi</button><button class="btn btn-primary small-btn" id="testFirebaseBtn" type="button" style="background:red;">TES FIREBASE</button></div></div>
         <div class="panel admin-panel"><div class="panel-head"><div><h2>Laporan masyarakat</h2></div><select id="reportFilter"><option value="all">Semua laporan</option><option value="Dikirim">Dikirim</option><option value="Diterima">Diterima</option><option value="Menunggu Prioritas">Menunggu Prioritas</option><option value="Diperbaiki">Diperbaiki</option><option value="Ditolak">Ditolak</option></select></div><div id="adminReports" class="report-list"></div></div>
         <div class="panel admin-panel"><div class="panel-head"><div><h2>Prioritas perbaikan - metode SAW</h2></div></div><div class="budget-row"><label>Anggaran tersedia (Rp)<input id="budgetInput" type="number" min="0" value="50000000"></label><button class="btn btn-primary" id="calculateBtn">Hitung Prioritas SAW</button></div><div class="formula-note"><b>Kriteria:</b> Urgensi 60% dan biaya 40%.</div><details class="scale-guide"><summary>Panduan skala urgensi (1-5)</summary><div id="scaleGuide"></div></details><div id="sawResults" class="saw-wrap"><p class="empty-state">Belum ada hasil perhitungan.</p></div></div>
-        <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2></div></div><div id="adminMap" class="map" style="height:360px; width:100%;"></div></div>
+        <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2><p>Pin dari semua laporan yang masuk</p></div></div><div id="adminMap" class="map" style="height:360px; width:100%;"></div><div id="adminMapStatus" style="font-size:13px;color:#555;margin-top:6px;">Memuat peta admin...</div></div>
       </div>
     </section>
   </main>
@@ -101,7 +101,7 @@
   <script>try{document.getElementById("scaleGuide").innerHTML=urgencyGuideTable();}catch(e){}</script>
   <script>
   (function(){
-    var userMap=null, userMarker=null, adminMap=null, tries=0;
+    var userMap=null, userMarker=null, tries=0;
     function log(msg){ var s=document.getElementById("mapStatus"); if(s) s.textContent=msg; }
     function buatUserMap(){
       var el=document.getElementById("userMap"); if(!el) return false;
@@ -123,14 +123,67 @@
   })();
   </script>
   <script>
+  (function(){
+    var adminMap=null, adminMarkers=[];
+    function buatAdminMap(){
+      var box=document.getElementById("adminDashboard");
+      var el=document.getElementById("adminMap");
+      var st=document.getElementById("adminMapStatus");
+      if(!box || box.hidden) return;
+      if(!el || typeof L==="undefined") return;
+      el.style.height="360px";
+      if(!adminMap){
+        try{
+          adminMap=L.map("adminMap").setView([3.5952,98.6722],12);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(adminMap);
+        }catch(e){ if(st) st.textContent="Gagal: "+e.message; return; }
+      }
+      setTimeout(function(){
+        try{ adminMap.invalidateSize(); }catch(e){}
+        adminMarkers.forEach(function(m){ try{adminMap.removeLayer(m);}catch(e){} });
+        adminMarkers=[];
+        var data=[];
+        try{ data=JSON.parse(localStorage.getItem("repairflow_public_reports_v1")||"[]"); }catch(e){}
+        if(!data.length) data=[
+          {facilityName:"Jalan Berlubang",lat:3.5952,lng:98.6722,status:"Dikirim",streetAddress:"Jl. Sei Deli",code:"A1"},
+          {facilityName:"Lampu Jalan Mati",lat:3.6001,lng:98.6788,status:"Diterima",streetAddress:"Jl. Setia Budi",code:"A2"}
+        ];
+        var n=0;
+        data.forEach(function(r){
+          if(!r.lat || !r.lng) return;
+          var m=L.marker([r.lat,r.lng]).addTo(adminMap);
+          m.bindPopup("<b>"+(r.facilityName||"Laporan")+"</b><br>"+(r.streetAddress||"")+"<br>Status: "+(r.status||"")+"<br>Kode: "+(r.code||""));
+          adminMarkers.push(m); n++;
+        });
+        if(st) st.textContent="Peta admin jalan! "+n+" pin laporan.";
+      },500);
+    }
+    document.addEventListener("click", function(e){
+      var t=e.target && e.target.textContent ? e.target.textContent : "";
+      if(t.includes("Masuk") || t.includes("petugas") || t.includes("Masuk petugas")){
+        setTimeout(buatAdminMap,800); setTimeout(buatAdminMap,2000);
+      }
+    });
+    document.addEventListener("submit", function(e){
+      if(e.target && e.target.id==="loginForm"){
+        setTimeout(buatAdminMap,1000); setTimeout(buatAdminMap,2500); setTimeout(buatAdminMap,4000);
+      }
+    });
+    setInterval(function(){
+      var box=document.getElementById("adminDashboard");
+      if(box && !box.hidden && !adminMap) buatAdminMap();
+    },2000);
+  })();
+  </script>
+  <script>
   document.addEventListener("click", async (e)=>{
     if(e.target && e.target.id==="testFirebaseBtn"){
       alert("Mencoba kirim ke Firebase...");
       for(let i=0;i<20;i++){ if(window.db && window.fb) break; await new Promise(r=>setTimeout(r,200)); }
-      if(!window.db){ alert("GAGAL: window.db KOSONG! Script Firebase di index.html belum jalan!"); return; }
+      if(!window.db){ alert("GAGAL: window.db KOSONG!"); return; }
       try{
         const ref = await window.fb.addDoc(window.fb.collection(window.db, "orders"), { code:"TES-"+Date.now(), facilityName:"TES TOMBOL", facilityType:"Jalan", description:"tes", streetAddress:"Medan", lat:3.59, lng:98.67, status:"Dikirim", urgency:3, cost:0, createdAt:new Date().toISOString(), userEmail:"tes@test.com" });
-        alert("BERHASIL! ID: "+ref.id+" - Cek Firebase Console sekarang!");
+        alert("BERHASIL! ID: "+ref.id);
       }catch(err){ alert("GAGAL FIREBASE: "+err.message); }
     }
   });
