@@ -1,174 +1,258 @@
-// ===== REPAIRFLOW - FULL + FIREBASE =====
+// ===== REPAIRFLOW - FULL + FIREBASE (Sesuai index.html kamu) =====
 const STORAGE_KEY = "repairflow_public_reports_v1";
 const USERS_KEY = "repairflow_users_v2";
 const SESSION_KEY = "repairflow_session_v2";
-const STAFF_KEY = "rf_staff_until";
-const LOCK_KEY = "rf_lock_v1";
 const STAFF_SALT = "repairflow-medan::v2";
 const STAFF_ITER = 150000;
 const STAFF_HASH = "ea0e0ef38d4a6fb6ed452c2ae476b6fe95f2ce8dd514c59c0c77cce70231f67e";
-
 const ST = {SENT:"Dikirim", ACC:"Diterima", WAIT:"Menunggu Prioritas", FIX:"Diperbaiki", REJ:"Ditolak"};
 const ST_ALL = [ST.SENT, ST.ACC, ST.WAIT, ST.FIX, ST.REJ];
 
-// ===== 1. FIREBASE CONFIG - GANTI DENGAN PUNYA KAMU =====
-const firebaseConfig = {
-  apiKey: "ISI_APIKEY_KAMU",
-  authDomain: "repairflow-e8b2a.firebaseapp.com",
-  projectId: "repairflow-e8b2a",
-  storageBucket: "repairflow-e8b2a.appspot.com",
-  messagingSenderId: "ISI_SENDER_ID_KAMU",
-  appId: "ISI_APP_ID_KAMU"
-};
-
-let db = null;
-try {
-  if (typeof firebase !== "undefined") {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-    console.log("Firebase nyambung!");
-  }
-} catch(e){ console.log("Firebase gagal:", e); }
-
-// ===== 2. DATA SIMULASI JURNAL - JANGAN DIHAPUS =====
+// Data simulasi jurnal A1-A5
 const SIM_DATA = [
-  {id:"A1", nama:"Ahmad", jalan:"Jl. Sei Deli No.12, Medan", kategori:"Jalan Berlubang", status:"Dikirim", lat:3.5952, lng:98.6722, tanggal:"2026-01-10"},
-  {id:"A2", nama:"Siti", jalan:"Jl. Setia Budi No.45, Medan", kategori:"Lampu Jalan Mati", status:"Diterima", lat:3.6001, lng:98.6788, tanggal:"2026-01-11"},
-  {id:"A3", nama:"Budi", jalan:"Jl. Gatot Subroto No.88, Medan", kategori:"Drainase Tersumbat", status:"Menunggu Prioritas", lat:3.5800, lng:98.6600, tanggal:"2026-01-12"},
-  {id:"A4", nama:"Dewi", jalan:"Jl. Sisingamangaraja No.5, Medan", kategori:"Jalan Berlubang", status:"Diperbaiki", lat:3.5700, lng:98.6800, tanggal:"2026-01-13"},
-  {id:"A5", nama:"Rizki", jalan:"Jl. Brigjen Katamso No.20, Medan", kategori:"Trotoar Rusak", status:"Ditolak", lat:3.5900, lng:98.6900, tanggal:"2026-01-14"},
+  {code:"A1", facilityName:"Jalan Berlubang", facilityType:"Jalan", description:"Jalan berlubang di Jl. Sei Deli", streetAddress:"Jl. Sei Deli No.12, Medan", lat:3.5952, lng:98.6722, status:"Dikirim", createdAt:"2026-01-10", urgency:4, cost:5000000, photo:""},
+  {code:"A2", facilityName:"Lampu Jalan Mati", facilityType:"Lampu jalan", description:"Lampu padam", streetAddress:"Jl. Setia Budi No.45, Medan", lat:3.6001, lng:98.6788, status:"Diterima", createdAt:"2026-01-11", urgency:3, cost:2000000, photo:""},
+  {code:"A3", facilityName:"Drainase Tersumbat", facilityType:"Drainase", description:"Drainase mampet", streetAddress:"Jl. Gatot Subroto No.88, Medan", lat:3.58, lng:98.66, status:"Menunggu Prioritas", createdAt:"2026-01-12", urgency:5, cost:8000000, photo:""},
+  {code:"A4", facilityName:"Jalan Berlubang", facilityType:"Jalan", description:"Lubang besar", streetAddress:"Jl. Sisingamangaraja No.5, Medan", lat:3.57, lng:98.68, status:"Diperbaiki", createdAt:"2026-01-13", urgency:4, cost:6000000, photo:""},
+  {code:"A5", facilityName:"Trotoar Rusak", facilityType:"Jalan", description:"Trotoar pecah", streetAddress:"Jl. Brigjen Katamso No.20, Medan", lat:3.59, lng:98.69, status:"Ditolak", createdAt:"2026-01-14", urgency:2, cost:3000000, photo:""},
 ];
 
-// ===== 3. LOAD & SAVE =====
 function loadReports(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      if(Array.isArray(parsed) && parsed.length>0) return parsed;
-    }
+    if(raw){ const p = JSON.parse(raw); if(Array.isArray(p) && p.length) return p; }
   }catch(e){}
   return [...SIM_DATA];
 }
-function saveReports(list){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }catch(e){}
-}
-
+function saveReports(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(reports)); }catch(e){} }
 let reports = loadReports();
+let currentUser = null;
+try{ currentUser = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }catch(e){}
 
-// ===== 4. KIRIM KE FIREBASE =====
-async function kirimKeFirebase(laporan){
-  if(!db) { console.log("DB belum siap"); return; }
-  try{
-    await db.collection("orders").add({
-      nama: laporan.nama || "",
-      jalan: laporan.jalan || "",
-      kategori: laporan.kategori || "",
-      status: laporan.status || ST.SENT,
-      lat: laporan.lat || null,
-      lng: laporan.lng || null,
-      tanggal: laporan.tanggal || new Date().toISOString().slice(0,10),
-      createdAt: new Date().toISOString()
-    });
-    console.log("Masuk Firebase!");
-  }catch(e){ console.log("Gagal kirim Firebase:", e); }
+// ===== NAVIGASI - HARUS ADA BIAR MENU JALAN =====
+function showPage(name, sub){
+  document.querySelectorAll(".page").forEach(p=>p.hidden=true);
+  const map = {report:"page-report", auth:"page-auth", track:"page-track", admin:"page-admin"};
+  const el = document.getElementById(map[name] || "page-report");
+  if(el) el.hidden=false;
+  document.querySelectorAll(".nav-link").forEach(b=>b.classList.remove("active"));
+  if(name==="report") document.getElementById("navReport")?.classList.add("active");
+  if(name==="track") document.getElementById("navTrack")?.classList.add("active");
+  if(name==="auth"){
+    const isLogin = sub!=="register";
+    document.getElementById("tabLogin")?.classList.toggle("active", isLogin);
+    document.getElementById("tabRegister")?.classList.toggle("active", !isLogin);
+    if(document.getElementById("userLoginForm")) document.getElementById("userLoginForm").hidden = !isLogin;
+    if(document.getElementById("userRegisterForm")) document.getElementById("userRegisterForm").hidden = isLogin;
+  }
+  updateGate(); renderAll(); window.scrollTo(0,0);
+}
+function goToForm(){ showPage("report"); setTimeout(()=>document.getElementById("formBand")?.scrollIntoView({behavior:"smooth"}),100); }
+function scrollToSec(id){ document.getElementById(id)?.scrollIntoView({behavior:"smooth"}); }
+function urgencyGuideTable(){
+  return `<table><tr><th>Skala</th><th>Arti</th></tr><tr><td>1</td><td>Tidak mendesak</td></tr><tr><td>2</td><td>Kurang mendesak</td></tr><tr><td>3</td><td>Cukup mendesak</td></tr><tr><td>4</td><td>Mendesak</td></tr><tr><td>5</td><td>Sangat mendesak</td></tr></table>`;
 }
 
-// Ambil data dari Firebase buat nambahin ke list (biar gak ilang pas refresh)
-async function ambilDariFirebase(){
-  if(!db) return;
+// ===== FIREBASE - PAKAI YANG UDAH ADA DI index.html =====
+async function kirimKeFirebase(laporan){
+  // Tunggu Firebase dari index.html (window.db & window.fb)
+  for(let i=0;i<20;i++){
+    if(window.db && window.fb) break;
+    await new Promise(r=>setTimeout(r,200));
+  }
+  if(!window.db || !window.fb){ console.log("Firebase belum siap"); return; }
   try{
-    const snap = await db.collection("orders").orderBy("createdAt","desc").limit(50).get();
+    await window.fb.addDoc(window.fb.collection(window.db, "orders"), {
+      code: laporan.code, facilityName: laporan.facilityName, facilityType: laporan.facilityType,
+      description: laporan.description, streetAddress: laporan.streetAddress,
+      lat: laporan.lat, lng: laporan.lng, status: laporan.status,
+      urgency: laporan.urgency || 3, cost: laporan.cost || 0,
+      createdAt: laporan.createdAt, userEmail: currentUser?.email || "anonim"
+    });
+    console.log("MASUK FIREBASE!");
+  }catch(e){ console.log("Gagal Firebase:", e); }
+}
+async function ambilDariFirebase(){
+  if(!window.db || !window.fb) return;
+  try{
+    const snap = await window.fb.getDocs(window.fb.collection(window.db, "orders"));
     snap.forEach(doc=>{
       const d = doc.data();
-      // Cek biar gak duplikat
-      const sudahAda = reports.some(r => r._fbId === doc.id);
-      if(!sudahAda){
-        reports.unshift({
-          id: "FB-" + doc.id.slice(0,5),
-          _fbId: doc.id,
-          nama: d.nama, jalan: d.jalan, kategori: d.kategori,
-          status: d.status, lat: d.lat, lng: d.lng, tanggal: d.tanggal
-        });
+      if(!reports.some(r=>r.code===d.code)){
+        reports.unshift({...d, _fbId: doc.id});
       }
     });
-    saveReports(reports);
-    renderAll();
-  }catch(e){ console.log("Gagal ambil Firebase:", e); }
+    saveReports(); renderAll();
+  }catch(e){ console.log("Gagal ambil:", e); }
 }
 
-// ===== 5. TAMBAH LAPORAN BARU =====
-function tambahLaporan(dataBaru){
-  const baru = {
-    id: "R" + Date.now().toString().slice(-5),
-    nama: dataBaru.nama,
-    jalan: dataBaru.jalan,
-    kategori: dataBaru.kategori,
-    status: ST.SENT,
-    lat: dataBaru.lat || 3.5952,
-    lng: dataBaru.lng || 98.6722,
-    tanggal: new Date().toISOString().slice(0,10)
-  };
-  reports.unshift(baru);
-  saveReports(reports);
-  kirimKeFirebase(baru); // <-- INI YANG BIKIN MASUK FIREBASE
-  renderAll();
-  return baru;
+// ===== RENDER =====
+function updateGate(){
+  const gate = document.getElementById("reportGate");
+  const form = document.getElementById("reportForm");
+  if(!gate || !form) return;
+  if(currentUser){ gate.hidden=true; form.hidden=false; }
+  else { gate.hidden=false; form.hidden=true; }
+  const wb = document.getElementById("welcomeBar");
+  if(wb && currentUser) wb.textContent = "Halo, " + currentUser.name;
+  const authArea = document.getElementById("authArea");
+  if(authArea){
+    authArea.innerHTML = currentUser
+      ? `<span>${currentUser.name}</span> <button class="btn btn-outline small-btn" onclick="logoutUser()">Keluar</button>`
+      : `<button class="btn btn-outline small-btn" onclick="showPage('auth','login')">Masuk</button>`;
+  }
+  const myBox = document.getElementById("myReportsBox");
+  if(myBox) myBox.hidden = !currentUser;
 }
-
-// ===== 6. RENDER (Nyesuain sama index.html kamu) =====
 function renderAll(){
-  // Total laporan
-  const elTotal = document.getElementById("totalLaporan") || document.querySelector("[data-total]");
-  if(elTotal) elTotal.textContent = reports.length;
+  const total = reports.length;
+  const c = {};
+  ST_ALL.forEach(s=>c[s]=reports.filter(r=>r.status===s).length);
+  document.querySelectorAll("#pubStats [data-k]").forEach(el=>{
+    const k = el.dataset.k;
+    if(k==="total") el.textContent = total;
+    if(k==="sent") el.textContent = c[ST.SENT]||0;
+    if(k==="acc") el.textContent = c[ST.ACC]||0;
+    if(k==="wait") el.textContent = c[ST.WAIT]||0;
+    if(k==="done") el.textContent = c[ST.FIX]||0;
+    if(k==="rej") el.textContent = c[ST.REJ]||0;
+  });
+  const set = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
+  set("statTotal", total); set("statSent", c[ST.SENT]||0); set("statAccepted", c[ST.ACC]||0);
+  set("statWait", c[ST.WAIT]||0); set("statFixed", c[ST.FIX]||0); set("statRejected", c[ST.REJ]||0);
 
-  // Hitung per status
-  const counts = {};
-  ST_ALL.forEach(s => counts[s] = reports.filter(r=>r.status===s).length);
-  ["Dikirim","Diterima","Menunggu Prioritas","Diperbaiki","Ditolak"].forEach(s=>{
-    const el = document.getElementById("count-"+s);
-    if(el) el.textContent = counts[s] || 0;
+  // Admin list
+  const adminBox = document.getElementById("adminReports");
+  if(adminBox){
+    const filter = document.getElementById("reportFilter")?.value || "all";
+    const list = filter==="all" ? reports : reports.filter(r=>r.status===filter);
+    adminBox.innerHTML = list.length ? list.map(r=>`
+      <div class="report-item"><b>${r.code} - ${r.facilityName}</b><br><small>${r.streetAddress} | ${r.status}</small><br><p>${r.description}</p>
+      <button class="btn btn-outline small-btn" onclick="openReview('${r.code}')">Periksa</button></div>
+    `).join("") : `<p class="empty-state">Belum ada laporan.</p>`;
+  }
+  // Laporan saya
+  const myBox = document.getElementById("myReports");
+  if(myBox && currentUser){
+    const mine = reports.filter(r=>r.userEmail===currentUser.email);
+    myBox.innerHTML = mine.length ? mine.map(r=>`<div><b>${r.code}</b> - ${r.facilityName} (${r.status})</div>`).join("") : `<p>Belum ada laporan.</p>`;
+  }
+}
+function openReview(code){
+  const r = reports.find(x=>x.code===code); if(!r) return;
+  const modal = document.getElementById("reviewModal"); if(modal) modal.hidden=false;
+  const cont = document.getElementById("reviewContent");
+  if(cont) cont.innerHTML = `<b>${r.facilityName}</b><p>${r.description}</p><p>${r.streetAddress}</p><p>Status: ${r.status}</p><p>Urgensi: <input id="revUrgency" type="number" min="1" max="5" value="${r.urgency||3}"> Biaya: <input id="revCost" type="number" value="${r.cost||0}"></p>`;
+  const act = document.getElementById("reviewActions");
+  if(act) act.innerHTML = `
+    <button class="btn btn-primary" onclick="ubahStatus('${r.code}','Diterima')">Terima</button>
+    <button class="btn btn-outline" onclick="ubahStatus('${r.code}','Ditolak')">Tolak</button>
+    <button class="btn btn-outline" onclick="simpanReview('${r.code}')">Simpan Urgensi/Biaya</button>`;
+}
+function simpanReview(code){
+  const r = reports.find(x=>x.code===code); if(!r) return;
+  r.urgency = parseInt(document.getElementById("revUrgency")?.value||3);
+  r.cost = parseInt(document.getElementById("revCost")?.value||0);
+  saveReports(); renderAll(); alert("Tersimpan!");
+}
+function ubahStatus(code, status){
+  const r = reports.find(x=>x.code===code); if(!r) return;
+  r.status = status; saveReports(); renderAll();
+  document.getElementById("reviewModal").hidden=true;
+}
+function logoutUser(){ localStorage.removeItem(SESSION_KEY); currentUser=null; updateGate(); showPage("report"); }
+async function pbkdf2(str, salt, iter){
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(str), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt: enc.encode(salt), iterations: iter, hash:"SHA-256"}, key, 256);
+  return [...new Uint8Array(bits)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+// ===== INIT =====
+document.addEventListener("DOMContentLoaded", ()=>{
+  updateGate(); renderAll();
+  setTimeout(ambilDariFirebase, 1000);
+
+  document.getElementById("closeReview")?.addEventListener("click", ()=>document.getElementById("reviewModal").hidden=true);
+  document.getElementById("tabLogin")?.addEventListener("click", ()=>showPage("auth","login"));
+  document.getElementById("tabRegister")?.addEventListener("click", ()=>showPage("auth","register"));
+  document.getElementById("reportFilter")?.addEventListener("change", renderAll);
+  document.getElementById("seedBtn")?.addEventListener("click", ()=>{ reports=[...SIM_DATA]; saveReports(); renderAll(); });
+  document.getElementById("unseedBtn")?.addEventListener("click", ()=>{ reports=reports.filter(r=>!SIM_DATA.some(s=>s.code===r.code)); saveReports(); renderAll(); });
+  document.getElementById("trackBtn")?.addEventListener("click", ()=>{
+    const code = document.getElementById("trackingCode")?.value.trim();
+    const r = reports.find(x=>x.code===code);
+    document.getElementById("trackingResult").innerHTML = r ? `<div class="panel"><b>${r.code}</b> - ${r.facilityName}<br>Status: ${r.status}<br>${r.streetAddress}</div>` : `<p>Tidak ditemukan.</p>`;
+  });
+  document.getElementById("logoutBtn")?.addEventListener("click", ()=>{ document.getElementById("adminDashboard").hidden=true; document.getElementById("adminLogin").hidden=false; showPage("report"); });
+
+  // Auth warga
+  document.getElementById("userRegisterForm")?.addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const name=document.getElementById("regName").value, email=document.getElementById("regEmail").value, pass=document.getElementById("regPass").value;
+    let users=[]; try{ users=JSON.parse(localStorage.getItem(USERS_KEY)||"[]"); }catch(err){}
+    users.push({name,email,pass}); localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    currentUser={name,email}; localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+    updateGate(); showPage("report"); alert("Akun dibuat!");
+  });
+  document.getElementById("userLoginForm")?.addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const email=document.getElementById("loginEmail").value, pass=document.getElementById("loginPass").value;
+    let users=[]; try{ users=JSON.parse(localStorage.getItem(USERS_KEY)||"[]"); }catch(err){}
+    const u = users.find(x=>x.email===email && x.pass===pass);
+    if(!u){ document.getElementById("userLoginMsg").textContent="Email / kata sandi salah"; return; }
+    currentUser={name:u.name,email:u.email}; localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+    updateGate(); showPage("report");
+  });
+  // Admin login
+  document.getElementById("loginForm")?.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const user=document.getElementById("adminUser").value, pass=document.getElementById("adminPass").value;
+    const h = await pbkdf2(user+"\0"+pass, STAFF_SALT, STAFF_ITER);
+    if(h===STAFF_HASH){ document.getElementById("adminLogin").hidden=true; document.getElementById("adminDashboard").hidden=false; renderAll(); }
+    else document.getElementById("loginMessage").textContent="Pengenal / kata sandi salah";
+  });
+  document.getElementById("calculateBtn")?.addEventListener("click", ()=>{
+    const budget = parseInt(document.getElementById("budgetInput")?.value||0);
+    const list = reports.filter(r=>r.status===ST.ACC).map(r=>{
+      const u = r.urgency||3, c = r.cost||1;
+      const normU = u/5, normC = 1 - (c/10000000);
+      return {...r, saw: (0.6*normU + 0.4*Math.max(0,normC))};
+    }).sort((a,b)=>b.saw-a.saw);
+    let sisa=budget, html="";
+    list.forEach(r=>{
+      const ambil = r.cost<=sisa; if(ambil) sisa-=r.cost;
+      html+=`<div>${r.code} - ${r.facilityName} | SAW: ${r.saw.toFixed(3)} | Rp ${r.cost} | ${ambil?"DIPILIH":"TIDAK MUAT"}</div>`;
+    });
+    document.getElementById("sawResults").innerHTML = html || "<p>Belum ada laporan Diterima.</p>";
   });
 
-  // Tabel / List
-  const tbody = document.getElementById("laporanBody") || document.getElementById("reportList") || document.querySelector("tbody");
-  if(tbody){
-    tbody.innerHTML = reports.map(r=>`
-      <tr>
-        <td>${r.id}</td>
-        <td>${r.nama}</td>
-        <td>${r.jalan}</td>
-        <td>${r.kategori}</td>
-        <td>${r.status}</td>
-        <td>${r.tanggal}</td>
-      </tr>
-    `).join("");
-  }
-}
-
-// ===== 7. FORM SUBMIT - OTOMATIS NYAMBUNG =====
-document.addEventListener("DOMContentLoaded", ()=>{
-  renderAll();
-  ambilDariFirebase();
-
-  const form = document.getElementById("laporanForm") || document.querySelector("form");
+  // FORM LAPORAN - INI YANG KIRIM KE FIREBASE
+  const form = document.getElementById("reportForm");
   if(form){
-    form.addEventListener("submit", (e)=>{
+    form.addEventListener("submit", async (e)=>{
       e.preventDefault();
-      const fd = new FormData(form);
-      const dataBaru = {
-        nama: fd.get("nama") || document.getElementById("nama")?.value || "Anonim",
-        jalan: fd.get("jalan") || document.getElementById("jalan")?.value || "",
-        kategori: fd.get("kategori") || document.getElementById("kategori")?.value || "Jalan Berlubang",
+      const code = "RF-" + new Date().toISOString().slice(0,10).replaceAll("-","") + "-" + Math.floor(100000+Math.random()*900000);
+      const baru = {
+        code,
+        facilityName: document.getElementById("facilityName").value,
+        facilityType: document.getElementById("facilityType").value,
+        description: document.getElementById("description").value,
+        streetAddress: document.getElementById("streetAddress").value || "Medan",
+        lat: parseFloat(document.getElementById("latitude").value) || 3.5952,
+        lng: parseFloat(document.getElementById("longitude").value) || 98.6722,
+        status: ST.SENT,
+        urgency: 3, cost: 0, photo: "",
+        createdAt: new Date().toISOString(),
+        userEmail: currentUser?.email || "anonim"
       };
-      const hasil = tambahLaporan(dataBaru);
-      alert("Laporan berhasil dikirim! ID: " + hasil.id + " - Sudah masuk Firebase!");
+      reports.unshift(baru); saveReports(); renderAll();
+      await kirimKeFirebase(baru); // <-- MASUK FIREBASE DI SINI
+      document.getElementById("submitMessage").textContent = "Berhasil! Nomor laporan: " + code + " (Sudah masuk Firebase)";
       form.reset();
+      alert("Berhasil! Nomor: " + code);
     });
   }
+  // Footer staff link
+  document.querySelector(".footer-staff a")?.addEventListener("click", (e)=>{ e.preventDefault(); showPage("admin"); });
 });
-
-// Biar bisa dipanggil dari console / tombol lain
-window.tambahLaporan = tambahLaporan;
-window.reports = reports;
-window.kirimKeFirebase = kirimKeFirebase;
