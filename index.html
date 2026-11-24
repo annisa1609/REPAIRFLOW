@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="style.css">
   <style>
     #userMap, #adminMap { height: 360px !important; width: 100% !important; min-height: 360px !important; display: block !important; background: #cfe3cf; border-radius: 12px; z-index: 1; }
-    .leaflet-container { height: 360px !important; width: 100% !important; background: #cfe3cf; }
+    .leaflet-container { height: 360px !important; width: 100% !important; }
   </style>
 </head>
 <body>
@@ -86,7 +86,7 @@
       <div id="adminDashboard" hidden>
         <div class="admin-heading"><div><span class="eyebrow">Panel pengelolaan</span><h1>Dashboard Pengelola</h1></div><button class="btn btn-outline" id="logoutBtn">Keluar</button></div>
         <div class="stats-grid"><div class="stat-card"><span>Total laporan</span><strong id="statTotal">0</strong></div><div class="stat-card"><span>Dikirim</span><strong id="statSent">0</strong></div><div class="stat-card"><span>Diterima</span><strong id="statAccepted">0</strong></div><div class="stat-card"><span>Menunggu Prioritas</span><strong id="statWait">0</strong></div><div class="stat-card"><span>Diperbaiki</span><strong id="statFixed">0</strong></div><div class="stat-card"><span>Ditolak</span><strong id="statRejected">0</strong></div></div>
-        <div class="sim-bar"><span><b>Data simulasi:</b> 5 laporan A1-A5</span><div><button class="btn btn-outline small-btn" id="seedBtn" type="button">Muat data simulasi</button><button class="btn btn-outline small-btn" id="unseedBtn" type="button">Hapus data simulasi</button></div></div>
+        <div class="sim-bar"><span><b>Data simulasi:</b> 5 laporan A1-A5</span><div><button class="btn btn-outline small-btn" id="seedBtn" type="button">Muat data simulasi</button><button class="btn btn-outline small-btn" id="unseedBtn" type="button">Hapus data simulasi</button><button class="btn btn-primary small-btn" id="testFirebaseBtn" type="button" style="background:red;">TES FIREBASE</button></div></div>
         <div class="panel admin-panel"><div class="panel-head"><div><h2>Laporan masyarakat</h2></div><select id="reportFilter"><option value="all">Semua laporan</option><option value="Dikirim">Dikirim</option><option value="Diterima">Diterima</option><option value="Menunggu Prioritas">Menunggu Prioritas</option><option value="Diperbaiki">Diperbaiki</option><option value="Ditolak">Ditolak</option></select></div><div id="adminReports" class="report-list"></div></div>
         <div class="panel admin-panel"><div class="panel-head"><div><h2>Prioritas perbaikan - metode SAW</h2></div></div><div class="budget-row"><label>Anggaran tersedia (Rp)<input id="budgetInput" type="number" min="0" value="50000000"></label><button class="btn btn-primary" id="calculateBtn">Hitung Prioritas SAW</button></div><div class="formula-note"><b>Kriteria:</b> Urgensi 60% dan biaya 40%.</div><details class="scale-guide"><summary>Panduan skala urgensi (1-5)</summary><div id="scaleGuide"></div></details><div id="sawResults" class="saw-wrap"><p class="empty-state">Belum ada hasil perhitungan.</p></div></div>
         <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2></div></div><div id="adminMap" class="map" style="height:360px; width:100%;"></div></div>
@@ -96,104 +96,52 @@
   <div class="songket"></div>
   <footer><div class="footer-landmarks">RepairFlow Medan</div><div class="footer-staff"><a href="#petugas">Masuk petugas</a></div><div><span id="copyMark">©</span> 2026 RepairFlow Medan</div></footer>
   <div class="modal-backdrop" id="reviewModal" hidden><div class="modal panel"><button class="modal-close" id="closeReview">×</button><span class="eyebrow">Pemeriksaan laporan</span><h2>Detail laporan</h2><div id="reviewContent"></div><div id="reviewActions" class="review-actions"></div></div></div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
   <script>try{document.getElementById("scaleGuide").innerHTML=urgencyGuideTable();}catch(e){}</script>
-
-  <!-- ===== PETA DARURAT - JALAN SENDIRI, GAK PEDULI app.js ERROR ===== -->
   <script>
   (function(){
     var userMap=null, userMarker=null, adminMap=null, tries=0;
-    function log(msg){ var s=document.getElementById("mapStatus"); if(s) s.textContent=msg; console.log("[PETA] "+msg); }
+    function log(msg){ var s=document.getElementById("mapStatus"); if(s) s.textContent=msg; }
     function buatUserMap(){
-      var el=document.getElementById("userMap");
-      if(!el) return false;
+      var el=document.getElementById("userMap"); if(!el) return false;
       if(typeof L==="undefined"){ log("Leaflet belum ke-load, nyoba lagi..."); return false; }
-      // Kalau form masih hidden, tunggu
-      var form=document.getElementById("reportForm");
-      if(form && form.hidden){ log("Menunggu login dulu..."); return false; }
+      var form=document.getElementById("reportForm"); if(form && form.hidden){ log("Menunggu login dulu..."); return false; }
       if(el.offsetHeight===0){ el.style.height="360px"; }
       if(userMap){ try{userMap.invalidateSize();}catch(e){} log("Peta sudah jalan! Klik peta untuk pilih lokasi."); return true; }
       try{
         userMap=L.map("userMap").setView([3.5952,98.6722],13);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(userMap);
-        userMap.on("click",function(e){
-          var lat=e.latlng.lat, lng=e.latlng.lng;
-          if(userMarker) userMap.removeLayer(userMarker);
-          userMarker=L.marker([lat,lng]).addTo(userMap);
-          var la=document.getElementById("latitude"), lo=document.getElementById("longitude");
-          if(la) la.value=lat.toFixed(6);
-          if(lo) lo.value=lng.toFixed(6);
-          var ad=document.getElementById("streetAddress");
-          if(ad && !ad.value) ad.value="Medan, Lat "+lat.toFixed(4)+", Lng "+lng.toFixed(4);
-          log("Lokasi dipilih: "+lat.toFixed(6)+", "+lng.toFixed(6)+" - Sudah bisa kirim!");
-        });
+        userMap.on("click",function(e){ var lat=e.latlng.lat, lng=e.latlng.lng; if(userMarker) userMap.removeLayer(userMarker); userMarker=L.marker([lat,lng]).addTo(userMap); var la=document.getElementById("latitude"), lo=document.getElementById("longitude"); if(la) la.value=lat.toFixed(6); if(lo) lo.value=lng.toFixed(6); var ad=document.getElementById("streetAddress"); if(ad && !ad.value) ad.value="Medan, Lat "+lat.toFixed(4)+", Lng "+lng.toFixed(4); log("Lokasi dipilih: "+lat.toFixed(6)+", "+lng.toFixed(6)); });
         setTimeout(function(){ try{userMap.invalidateSize();}catch(e){} },400);
-        setTimeout(function(){ try{userMap.invalidateSize();}catch(e){} },1200);
-        log("Peta berhasil dimuat! Klik peta untuk pilih lokasi.");
-        return true;
+        log("Peta berhasil dimuat! Klik peta untuk pilih lokasi."); return true;
       }catch(e){ log("Gagal bikin peta: "+e.message); return false; }
     }
-    function buatAdminMap(){
-      var el=document.getElementById("adminMap");
-      if(!el || typeof L==="undefined" || adminMap) return;
-      if(document.getElementById("adminDashboard") && document.getElementById("adminDashboard").hidden) return;
-      try{
-        adminMap=L.map("adminMap").setView([3.5952,98.6722],12);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(adminMap);
-        setTimeout(function(){ try{adminMap.invalidateSize();}catch(e){} },400);
-      }catch(e){}
-    }
-    // Coba terus tiap 1 detik sampe berhasil, 30x
-    var timer=setInterval(function(){
-      tries++;
-      if(buatUserMap()){ clearInterval(timer); }
-      buatAdminMap();
-      if(tries>30) clearInterval(timer);
-    },1000);
-    // Kalau klik tombol Buat Laporan / Masuk, coba lagi
-    document.addEventListener("click", function(e){
-      if(e.target && (e.target.textContent.includes("Buat laporan") || e.target.textContent.includes("Masuk") || e.target.id==="locateBtn")){
-        setTimeout(buatUserMap,500);
-        setTimeout(buatUserMap,1500);
-      }
-    });
-    // Tombol GPS - JALAN SENDIRI JUGA
-    document.addEventListener("click", function(e){
-      if(e.target && e.target.id==="locateBtn"){
-        if(!navigator.geolocation){ alert("GPS tidak didukung"); return; }
-        navigator.geolocation.getCurrentPosition(function(pos){
-          var lat=pos.coords.latitude, lng=pos.coords.longitude;
-          if(userMap){
-            userMap.setView([lat,lng],16);
-            if(userMarker) userMap.removeLayer(userMarker);
-            userMarker=L.marker([lat,lng]).addTo(userMap);
-          }
-          document.getElementById("latitude").value=lat.toFixed(6);
-          document.getElementById("longitude").value=lng.toFixed(6);
-          log("GPS ketemu: "+lat.toFixed(6)+", "+lng.toFixed(6));
-        }, function(){ alert("Gagal GPS, klik peta aja ya!"); });
-      }
-    });
+    var timer=setInterval(function(){ tries++; if(buatUserMap()) clearInterval(timer); if(tries>30) clearInterval(timer); },1000);
+    document.addEventListener("click", function(e){ if(e.target && (e.target.textContent.includes("Buat laporan") || e.target.textContent.includes("Masuk"))){ setTimeout(buatUserMap,500); } });
+    document.addEventListener("click", function(e){ if(e.target && e.target.id==="locateBtn"){ if(!navigator.geolocation){ alert("GPS tidak didukung"); return; } navigator.geolocation.getCurrentPosition(function(pos){ var lat=pos.coords.latitude, lng=pos.coords.longitude; if(userMap){ userMap.setView([lat,lng],16); if(userMarker) userMap.removeLayer(userMarker); userMarker=L.marker([lat,lng]).addTo(userMap); } document.getElementById("latitude").value=lat.toFixed(6); document.getElementById("longitude").value=lng.toFixed(6); log("GPS ketemu: "+lat.toFixed(6)); }, function(){ alert("Gagal GPS, klik peta aja!"); }); } });
   })();
   </script>
-
+  <script>
+  document.addEventListener("click", async (e)=>{
+    if(e.target && e.target.id==="testFirebaseBtn"){
+      alert("Mencoba kirim ke Firebase...");
+      for(let i=0;i<20;i++){ if(window.db && window.fb) break; await new Promise(r=>setTimeout(r,200)); }
+      if(!window.db){ alert("GAGAL: window.db KOSONG! Script Firebase di index.html belum jalan!"); return; }
+      try{
+        const ref = await window.fb.addDoc(window.fb.collection(window.db, "orders"), { code:"TES-"+Date.now(), facilityName:"TES TOMBOL", facilityType:"Jalan", description:"tes", streetAddress:"Medan", lat:3.59, lng:98.67, status:"Dikirim", urgency:3, cost:0, createdAt:new Date().toISOString(), userEmail:"tes@test.com" });
+        alert("BERHASIL! ID: "+ref.id+" - Cek Firebase Console sekarang!");
+      }catch(err){ alert("GAGAL FIREBASE: "+err.message); }
+    }
+  });
+  </script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    const firebaseConfig = {
-      apiKey: "AIzaSyDCy3_3pioWmqKezcR0vpbqDWD5WL7DC_I",
-      authDomain: "repairflow-medan-d495f.firebaseapp.com",
-      projectId: "repairflow-medan-d495f",
-      storageBucket: "repairflow-medan-d495f.firebasestorage.app",
-      messagingSenderId: "286395815980",
-      appId: "1:286395815980:web:d0b9e2d083410306885989"
-    };
+    const firebaseConfig = { apiKey: "AIzaSyDCy3_3pioWmqKezcR0vpbqDWD5WL7DC_I", authDomain: "repairflow-medan-d495f.firebaseapp.com", projectId: "repairflow-medan-d495f", storageBucket: "repairflow-medan-d495f.firebasestorage.app", messagingSenderId: "286395815980", appId: "1:286395815980:web:d0b9e2d083410306885989" };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    window.db = db;
-    window.fb = { collection, addDoc, getDocs };
+    window.db = db; window.fb = { collection, addDoc, getDocs };
     console.log("Firebase nyambung!");
   </script>
 </body>
