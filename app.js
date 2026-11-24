@@ -1,4 +1,4 @@
-// ===== REPAIRFLOW - FULL + FIREBASE + PETA FIX =====
+// ===== REPAIRFLOW - FULL + FIREBASE + PETA FIX PUTIH =====
 const STORAGE_KEY = "repairflow_public_reports_v1";
 const USERS_KEY = "repairflow_users_v2";
 const SESSION_KEY = "repairflow_session_v2";
@@ -45,8 +45,8 @@ function showPage(name, sub){
     if(document.getElementById("userRegisterForm")) document.getElementById("userRegisterForm").hidden = isLogin;
   }
   updateGate(); renderAll();
-  if(name==="report") setTimeout(initUserMap, 300);
-  if(name==="admin") setTimeout(initAdminMap, 300);
+  if(name==="report") setTimeout(paksaLoadPeta, 400);
+  if(name==="admin") setTimeout(initAdminMap, 400);
   window.scrollTo(0,0);
 }
 function goToForm(){ showPage("report"); setTimeout(()=>document.getElementById("formBand")?.scrollIntoView({behavior:"smooth"}),100); }
@@ -55,7 +55,7 @@ function urgencyGuideTable(){
   return `<table><tr><th>Skala</th><th>Arti</th></tr><tr><td>1</td><td>Tidak mendesak</td></tr><tr><td>2</td><td>Kurang mendesak</td></tr><tr><td>3</td><td>Cukup mendesak</td></tr><tr><td>4</td><td>Mendesak</td></tr><tr><td>5</td><td>Sangat mendesak</td></tr></table>`;
 }
 
-// ===== FIREBASE - PAKAI window.db DARI index.html =====
+// ===== FIREBASE =====
 async function kirimKeFirebase(laporan){
   for(let i=0;i<20;i++){ if(window.db && window.fb) break; await new Promise(r=>setTimeout(r,200)); }
   if(!window.db || !window.fb){ console.log("Firebase belum siap"); return; }
@@ -82,12 +82,26 @@ async function ambilDariFirebase(){
   }catch(e){ console.log("Gagal ambil:", e); }
 }
 
-// ===== PETA - LEAFLET FIX =====
+// ===== PETA - FIX PUTIH TOTAL =====
 let userMap = null, userMarker = null, adminMap = null, adminMarkers = [];
 function initUserMap(){
   const el = document.getElementById("userMap");
-  if(!el || typeof L === "undefined") return;
-  if(userMap){ setTimeout(()=>userMap.invalidateSize(), 200); return; }
+  if(!el || typeof L === "undefined"){ console.log("Leaflet belum ke-load / elemen gak ada"); return; }
+  // PAKSA TINGGI BIAR GAK 0
+  el.style.height = "350px";
+  el.style.width = "100%";
+  el.style.display = "block";
+  el.style.background = "#d6e8d6";
+  // Kalau form masih hidden, jangan bikin dulu, tunggu keliatan
+  if(el.offsetParent === null && document.getElementById("reportForm")?.hidden){
+    console.log("Peta masih hidden, tunggu...");
+    return;
+  }
+  if(userMap){
+    try{ userMap.invalidateSize(); }catch(e){}
+    return;
+  }
+  console.log("Bikin peta baru...");
   userMap = L.map("userMap").setView([3.5952, 98.6722], 13);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution:"© OpenStreetMap"}).addTo(userMap);
   userMap.on("click", (e)=>{
@@ -103,11 +117,30 @@ function initUserMap(){
     const msg = document.getElementById("locationMessage");
     if(msg) msg.textContent = "Lokasi dipilih: " + lat.toFixed(6) + ", " + lng.toFixed(6);
   });
-  setTimeout(()=>userMap.invalidateSize(), 300);
+  setTimeout(()=>{ try{ userMap.invalidateSize(); }catch(e){} }, 300);
+  setTimeout(()=>{ try{ userMap.invalidateSize(); }catch(e){} }, 1000);
+}
+function paksaLoadPeta(){
+  const el = document.getElementById("userMap");
+  if(!el) return;
+  // Kalau peta udah ada tapi masih putih / gak ada tile, hancurin dan bikin lagi
+  const isPutih = el.innerHTML.trim() === "" || el.querySelectorAll("img.leaflet-tile").length === 0;
+  if(userMap && !isPutih){
+    try{ userMap.invalidateSize(); }catch(e){}
+    return;
+  }
+  if(userMap){ try{ userMap.remove(); }catch(e){} userMap = null; userMarker = null; }
+  el.innerHTML = "";
+  el.style.height = "350px";
+  el.style.display = "block";
+  setTimeout(initUserMap, 200);
 }
 function initAdminMap(){
   const el = document.getElementById("adminMap");
   if(!el || typeof L === "undefined") return;
+  el.style.height = "350px";
+  el.style.width = "100%";
+  el.style.display = "block";
   if(!adminMap){
     adminMap = L.map("adminMap").setView([3.5952, 98.6722], 12);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution:"© OpenStreetMap"}).addTo(adminMap);
@@ -119,7 +152,7 @@ function initAdminMap(){
       adminMarkers.push(mk);
     }
   });
-  setTimeout(()=>adminMap.invalidateSize(), 300);
+  setTimeout(()=>{ try{ adminMap.invalidateSize(); }catch(e){} }, 300);
 }
 
 // ===== RENDER =====
@@ -204,7 +237,11 @@ async function pbkdf2(str, salt, iter){
 // ===== INIT =====
 document.addEventListener("DOMContentLoaded", ()=>{
   updateGate(); renderAll();
-  setTimeout(()=>{ initUserMap(); ambilDariFirebase(); }, 800);
+  // Coba load peta berkali-kali biar gak putih lagi
+  setTimeout(paksaLoadPeta, 800);
+  setTimeout(paksaLoadPeta, 2000);
+  setTimeout(paksaLoadPeta, 4000);
+  setTimeout(ambilDariFirebase, 1000);
 
   document.getElementById("closeReview")?.addEventListener("click", ()=>document.getElementById("reviewModal").hidden=true);
   document.getElementById("tabLogin")?.addEventListener("click", ()=>showPage("auth","login"));
@@ -219,7 +256,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
   });
   document.getElementById("logoutBtn")?.addEventListener("click", ()=>{ document.getElementById("adminDashboard").hidden=true; document.getElementById("adminLogin").hidden=false; showPage("report"); });
 
-  // Tombol GPS
   document.getElementById("locateBtn")?.addEventListener("click", ()=>{
     if(!navigator.geolocation){ alert("GPS tidak didukung"); return; }
     navigator.geolocation.getCurrentPosition((pos)=>{
@@ -236,7 +272,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
     }, ()=>alert("Gagal ambil GPS, klik peta aja ya"));
   });
 
-  // Foto preview
   document.getElementById("photo")?.addEventListener("change", (e)=>{
     const f = e.target.files[0]; if(!f) return;
     const url = URL.createObjectURL(f);
@@ -246,14 +281,13 @@ document.addEventListener("DOMContentLoaded", ()=>{
     if(img) img.src=url;
   });
 
-  // Auth warga
   document.getElementById("userRegisterForm")?.addEventListener("submit", (e)=>{
     e.preventDefault();
     const name=document.getElementById("regName").value, email=document.getElementById("regEmail").value, pass=document.getElementById("regPass").value;
     let users=[]; try{ users=JSON.parse(localStorage.getItem(USERS_KEY)||"[]"); }catch(err){}
     users.push({name,email,pass}); localStorage.setItem(USERS_KEY, JSON.stringify(users));
     currentUser={name,email}; localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
-    updateGate(); showPage("report"); alert("Akun dibuat!");
+    updateGate(); showPage("report"); setTimeout(paksaLoadPeta, 600); alert("Akun dibuat!");
   });
   document.getElementById("userLoginForm")?.addEventListener("submit", (e)=>{
     e.preventDefault();
@@ -262,7 +296,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     const u = users.find(x=>x.email===email && x.pass===pass);
     if(!u){ document.getElementById("userLoginMsg").textContent="Email / kata sandi salah"; return; }
     currentUser={name:u.name,email:u.email}; localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
-    updateGate(); showPage("report");
+    updateGate(); showPage("report"); setTimeout(paksaLoadPeta, 600);
   });
   document.getElementById("loginForm")?.addEventListener("submit", async (e)=>{
     e.preventDefault();
@@ -286,7 +320,6 @@ document.addEventListener("DOMContentLoaded", ()=>{
     document.getElementById("sawResults").innerHTML = html || "<p>Belum ada laporan Diterima.</p>";
   });
 
-  // FORM LAPORAN
   const form = document.getElementById("reportForm");
   if(form){
     form.addEventListener("submit", async (e)=>{
