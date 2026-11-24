@@ -7,6 +7,11 @@
   <title>RepairFlow Medan - Lapor Fasilitas Umum</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* FIX PETA PUTIH - PAKSA TINGGI DI SINI BIAR PASTI MUNCUL */
+    #userMap, #adminMap { height: 350px !important; width: 100% !important; min-height: 350px !important; background: #d6e8d6; display: block; border-radius: 12px; z-index: 1; }
+    .leaflet-container { height: 350px !important; width: 100% !important; }
+  </style>
 </head>
 <body>
   <header class="topbar-wrap">
@@ -26,7 +31,6 @@
   </header>
 
   <main>
-    <!-- ============ BERANDA / BUAT LAPORAN ============ -->
     <section id="page-report" class="page">
       <section class="hero">
         <div class="hero-sky" aria-hidden="true"><span class="moon"></span></div>
@@ -94,7 +98,7 @@
         </div>
         <div class="section-heading location-heading"><div><span class="step">02</span><h2>Lokasi kerusakan</h2></div><p>Gunakan GPS atau pilih titik pada peta.</p></div>
         <div class="location-actions"><button type="button" class="btn btn-outline" id="locateBtn">◎ Gunakan lokasi saya</button><span class="hint" id="locationMessage">Izinkan akses lokasi pada browser, atau klik peta untuk menentukan titik.</span></div>
-        <div id="userMap" class="map"></div>
+        <div id="userMap" class="map" style="height:350px; width:100%;"></div>
         <div class="form-grid location-fields">
           <label class="full">Nama jalan / alamat<input id="streetAddress" required placeholder="Alamat akan terisi setelah lokasi dipilih"></label>
           <label>Latitude<input id="latitude" readonly required placeholder="Belum ditentukan"></label>
@@ -118,7 +122,6 @@
       </div>
     </section>
 
-    <!-- ============ MASUK / DAFTAR WARGA ============ -->
     <section id="page-auth" class="page wrap page-wrap" hidden>
       <div class="auth-wrap panel">
         <div class="auth-side">
@@ -147,7 +150,6 @@
       </div>
     </section>
 
-    <!-- ============ CEK LAPORAN ============ -->
     <section id="page-track" class="page wrap page-wrap" hidden>
       <div class="page-title"><span class="eyebrow">Transparansi laporan</span><h1>Cek status laporan</h1><p>Masukkan nomor laporan yang muncul setelah pengiriman.</p></div>
       <div class="panel track-panel"><label>Nomor laporan<input id="trackingCode" placeholder="Contoh: RF-20261117-123456"></label><button class="btn btn-primary" id="trackBtn">Cari laporan</button></div>
@@ -158,13 +160,11 @@
       </div>
     </section>
 
-    <!-- ============ AREA PENGELOLA (tidak ada tombol di menu) ============ -->
     <section id="page-admin" class="page wrap page-wrap" hidden>
       <div id="adminLogin" class="login-card panel">
         <span class="eyebrow">Akses terbatas</span><h1>Gerbang Pengelola</h1><p>Khusus petugas yang berwenang.</p>
         <form id="loginForm" autocomplete="off"><label>Pengenal<input id="adminUser" required autocomplete="off" spellcheck="false" placeholder="Pengenal petugas"></label><label>Kata sandi<input id="adminPass" type="password" autocomplete="new-password" placeholder="Kata sandi" required></label><button class="btn btn-primary full-btn">Masuk</button><div id="loginMessage" class="message"></div></form>
       </div>
-
       <div id="adminDashboard" hidden>
         <div class="admin-heading"><div><span class="eyebrow">Panel pengelolaan</span><h1>Dashboard Pengelola</h1><p>Periksa laporan masuk sebelum menghitung prioritas perbaikan.</p></div><button class="btn btn-outline" id="logoutBtn">Keluar</button></div>
         <div class="stats-grid">
@@ -188,7 +188,7 @@
           <details class="scale-guide"><summary>Panduan skala urgensi (1-5)</summary><div id="scaleGuide"></div></details>
           <div id="sawResults" class="saw-wrap"><p class="empty-state">Belum ada hasil perhitungan. Terima laporan dan isi urgensi serta biaya terlebih dahulu.</p></div>
         </div>
-        <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2><p>Lokasi laporan yang memiliki koordinat.</p></div></div><div id="adminMap" class="map"></div></div>
+        <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2><p>Lokasi laporan yang memiliki koordinat.</p></div></div><div id="adminMap" class="map" style="height:350px; width:100%;"></div></div>
       </div>
     </section>
   </main>
@@ -212,7 +212,6 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
   const firebaseConfig = {
   apiKey: "AIzaSyDCy3_3pioWmqKezcR0vpbqDWD5WL7DC_I",
   authDomain: "repairflow-medan-d495f.firebaseapp.com",
@@ -221,7 +220,6 @@
   messagingSenderId: "286395815980",
   appId: "1:286395815980:web:d0b9e2d083410306885989"
 };
-  
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   window.db = db;
