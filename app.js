@@ -1,4 +1,4 @@
-// ===== REPAIRFLOW - FULL + FIREBASE + PETA SUDAH DI index.html =====
+// ===== REPAIRFLOW - FULL + FIREBASE =====
 const STORAGE_KEY = "repairflow_public_reports_v1";
 const USERS_KEY = "repairflow_users_v2";
 const SESSION_KEY = "repairflow_session_v2";
@@ -31,31 +31,18 @@ function showPage(name, sub){
 function goToForm(){ showPage("report"); setTimeout(()=>document.getElementById("formBand")?.scrollIntoView({behavior:"smooth"}),100); }
 function scrollToSec(id){ document.getElementById(id)?.scrollIntoView({behavior:"smooth"}); }
 function urgencyGuideTable(){ return `<table><tr><th>Skala</th><th>Arti</th></tr><tr><td>1</td><td>Tidak mendesak</td></tr><tr><td>2</td><td>Kurang mendesak</td></tr><tr><td>3</td><td>Cukup mendesak</td></tr><tr><td>4</td><td>Mendesak</td></tr><tr><td>5</td><td>Sangat mendesak</td></tr></table>`; }
-
-// ===== INI YANG NGIRIM KE FIREBASE - JANGAN DIHAPUS =====
 async function kirimKeFirebase(laporan){
-  console.log("Mencoba kirim ke Firebase...", laporan.code);
+  console.log("Kirim ke Firebase...", laporan.code);
   for(let i=0;i<30;i++){ if(window.db && window.fb) break; await new Promise(r=>setTimeout(r,200)); }
-  if(!window.db || !window.fb){ console.log("GAGAL: window.db belum ada!"); alert("Firebase belum siap, coba refresh!"); return; }
+  if(!window.db || !window.fb){ alert("Firebase belum siap, coba refresh!"); return; }
   try{
-    const docRef = await window.fb.addDoc(window.fb.collection(window.db, "orders"), {
-      code: laporan.code, facilityName: laporan.facilityName, facilityType: laporan.facilityType,
-      description: laporan.description, streetAddress: laporan.streetAddress,
-      lat: laporan.lat, lng: laporan.lng, status: laporan.status,
-      urgency: laporan.urgency||3, cost: laporan.cost||0,
-      createdAt: laporan.createdAt, userEmail: currentUser?.email||"anonim"
-    });
-    console.log("BERHASIL MASUK FIREBASE! ID:", docRef.id);
-    alert("Masuk Firebase! ID: "+docRef.id);
-  }catch(e){ console.log("GAGAL FIREBASE:", e); alert("Gagal Firebase: "+e.message+" - Cek Rules kamu!"); }
+    const docRef = await window.fb.addDoc(window.fb.collection(window.db, "orders"), { code: laporan.code, facilityName: laporan.facilityName, facilityType: laporan.facilityType, description: laporan.description, streetAddress: laporan.streetAddress, lat: laporan.lat, lng: laporan.lng, status: laporan.status, urgency: laporan.urgency||3, cost: laporan.cost||0, createdAt: laporan.createdAt, userEmail: currentUser?.email||"anonim" });
+    console.log("BERHASIL FIREBASE:", docRef.id); alert("Masuk Firebase! ID: "+docRef.id);
+  }catch(e){ console.log("GAGAL FIREBASE:", e); alert("Gagal Firebase: "+e.message+" - Cek Rules!"); }
 }
 async function ambilDariFirebase(){
   if(!window.db || !window.fb) return;
-  try{
-    const snap = await window.fb.getDocs(window.fb.collection(window.db, "orders"));
-    snap.forEach(doc=>{ const d=doc.data(); if(!reports.some(r=>r.code===d.code)) reports.unshift({...d,_fbId:doc.id}); });
-    saveReports(); renderAll();
-  }catch(e){ console.log("Gagal ambil:", e); }
+  try{ const snap = await window.fb.getDocs(window.fb.collection(window.db, "orders")); snap.forEach(doc=>{ const d=doc.data(); if(!reports.some(r=>r.code===d.code)) reports.unshift({...d,_fbId:doc.id}); }); saveReports(); renderAll(); }catch(e){ console.log("Gagal ambil:", e); }
 }
 function updateGate(){
   const gate=document.getElementById("reportGate"), form=document.getElementById("reportForm"); if(!gate||!form) return;
