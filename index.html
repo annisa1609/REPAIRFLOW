@@ -7,15 +7,14 @@
   <title>RepairFlow Medan - Lapor Fasilitas Umum</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
-  <style>
-    #userMap, #adminMap { height: 360px !important; width: 100% !important; min-height: 360px !important; display: block !important; background: #cfe3cf; border-radius: 12px; z-index: 1; }
-    .leaflet-container { height: 360px !important; width: 100% !important; }
-  </style>
 </head>
 <body>
   <header class="topbar-wrap">
     <div class="topbar">
-      <a class="brand" href="#" onclick="showPage('report');return false;"><span class="brand-mark"><i></i></span><span class="brand-text">Repair<b>Flow</b><small>Kota Medan</small></span></a>
+      <a class="brand" href="#" onclick="showPage('report');return false;" aria-label="RepairFlow Medan">
+        <span class="brand-mark"><i></i></span>
+        <span class="brand-text">Repair<b>Flow</b><small>Kota Medan</small></span>
+      </a>
       <nav>
         <button class="nav-link active" id="navReport" onclick="showPage('report')">Buat Laporan</button>
         <button class="nav-link" id="navTrack" onclick="showPage('track')">Cek Laporan</button>
@@ -25,177 +24,190 @@
       <div class="auth-area" id="authArea"></div>
     </div>
   </header>
+
   <main>
+    <!-- ============ BERANDA / BUAT LAPORAN ============ -->
     <section id="page-report" class="page">
       <section class="hero">
-        <div class="hero-sky"><span class="moon"></span></div>
+        <div class="hero-sky" aria-hidden="true"><span class="moon"></span></div>
         <div class="wrap hero-inner">
           <h1><span>Ada yang rusak</span><span>di Medan?</span><span class="gold">Lapor sekarang.</span></h1>
-          <p class="hero-sub">Foto kerusakannya, tandai lokasinya, kirim.</p>
-          <div class="hero-cta"><button class="btn btn-gold btn-lg" onclick="goToForm()">Buat laporan</button><button class="btn btn-ghost btn-lg" onclick="showPage('track')">Cek status laporan</button></div>
-          <aside class="ticket"><small>Contoh laporan</small><b>Lampu jalan padam</b><span>Jl. Sisingamangaraja, Medan</span><ol><li class="on">Dikirim</li><li class="on">Diterima</li><li>Diperbaiki</li></ol></aside>
+          <p class="hero-sub">Foto kerusakannya, tandai lokasinya, kirim. Petugas memeriksa dan memprioritaskan perbaikan sesuai anggaran kota.</p>
+          <div class="hero-cta">
+            <button class="btn btn-gold btn-lg" onclick="goToForm()">Buat laporan</button>
+            <button class="btn btn-ghost btn-lg" onclick="showPage('track')">Cek status laporan</button>
+          </div>
+          <aside class="ticket" aria-label="Contoh laporan">
+            <small>Contoh laporan</small>
+            <b>Lampu jalan padam</b>
+            <span>Jl. Sisingamangaraja, Medan</span>
+            <ol><li class="on">Dikirim</li><li class="on">Diterima</li><li>Diperbaiki</li></ol>
+          </aside>
         </div>
-        <div class="hero-art"><img src="assets/istana-maimun.jpg" onerror="this.onerror=null;this.src='assets/istana-maimun.svg'" alt=""></div>
+        <div class="hero-art" aria-hidden="true"><img src="assets/istana-maimun.jpg" onerror="this.onerror=null;this.src='assets/istana-maimun.svg'" alt=""></div>
       </section>
-      <div class="songket"></div>
-      <div class="stat-band"><div class="wrap stat-grid"><h2>Laporan warga<br>sejauh ini</h2><div class="pub-stats" id="pubStats"><div><strong data-k="total">0</strong><span>Total laporan</span></div><div><strong data-k="sent">0</strong><span>Dikirim</span></div><div><strong data-k="acc">0</strong><span>Diterima</span></div><div><strong data-k="wait">0</strong><span>Menunggu Prioritas</span></div><div><strong data-k="done">0</strong><span>Diperbaiki</span></div><div><strong data-k="rej">0</strong><span>Ditolak</span></div></div></div></div>
-      <div class="band band-sage" id="pedoman"><div class="wrap"><h2 class="sec-title">Alur pelaporan</h2><div class="steps"><div class="step-card"><em>1</em><h3>Masuk akun</h3><p>Daftar atau masuk sebagai warga.</p></div><div class="step-card"><em>2</em><h3>Foto dan lokasi</h3><p>Unggah foto dan tandai lokasi.</p></div><div class="step-card"><em>3</em><h3>Diperiksa petugas</h3><p>Petugas memverifikasi laporan.</p></div><div class="step-card"><em>4</em><h3>Diprioritaskan</h3><p>Diurutkan dengan metode SAW.</p></div></div></div></div>
-      <div class="band band-white" id="formBand"><div class="wrap"><div id="formAnchor"></div><h2 class="sec-title">Buat laporan</h2>
-          <div id="reportGate" class="panel gate-panel" hidden><h3>Masuk untuk membuat laporan</h3><p>Silakan masuk atau daftar akun warga terlebih dahulu.</p><div class="hero-cta"><button class="btn btn-gold" onclick="showPage('auth','login')">Masuk</button><button class="btn btn-outline" onclick="showPage('auth','register')">Daftar akun baru</button></div></div>
+      <div class="songket" aria-hidden="true"></div>
+      <div class="stat-band">
+        <div class="wrap stat-grid">
+          <h2>Laporan warga<br>sejauh ini</h2>
+          <div class="pub-stats" id="pubStats">
+            <div><strong data-k="total">0</strong><span>Total laporan</span></div>
+            <div><strong data-k="sent">0</strong><span>Dikirim</span></div>
+            <div><strong data-k="acc">0</strong><span>Diterima</span></div>
+            <div><strong data-k="wait">0</strong><span>Menunggu Prioritas</span></div>
+            <div><strong data-k="done">0</strong><span>Diperbaiki</span></div>
+            <div><strong data-k="rej">0</strong><span>Ditolak</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="band band-sage" id="pedoman">
+        <div class="wrap">
+          <h2 class="sec-title">Alur pelaporan</h2>
+          <div class="steps">
+            <div class="step-card"><em>1</em><h3>Masuk akun</h3><p>Daftar atau masuk sebagai warga agar laporan tercatat atas namamu.</p></div>
+            <div class="step-card"><em>2</em><h3>Foto dan lokasi</h3><p>Unggah foto kerusakan dan tandai titik lokasi lewat GPS atau peta.</p></div>
+            <div class="step-card"><em>3</em><h3>Diperiksa petugas</h3><p>Petugas memverifikasi laporan, lalu menilai urgensi dan estimasi biaya.</p></div>
+            <div class="step-card"><em>4</em><h3>Diprioritaskan</h3><p>Laporan diurutkan dengan metode SAW sesuai anggaran, lalu diperbaiki.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="band band-white" id="formBand">
+        <div class="wrap">
+          <div id="formAnchor"></div>
+          <h2 class="sec-title">Buat laporan</h2>
+          <div id="reportGate" class="panel gate-panel" hidden>
+            <h3>Masuk untuk membuat laporan</h3>
+            <p>Silakan masuk atau daftar akun warga terlebih dahulu. Gratis dan hanya butuh satu menit.</p>
+            <div class="hero-cta"><button class="btn btn-gold" onclick="showPage('auth','login')">Masuk</button><button class="btn btn-outline" onclick="showPage('auth','register')">Daftar akun baru</button></div>
+          </div>
           <form id="reportForm" class="panel form-panel" hidden>
-            <div class="welcome-bar" id="welcomeBar"></div>
-            <div class="section-heading"><div><span class="step">01</span><h2>Informasi laporan</h2></div><p>Isi detail fasilitas yang rusak.</p></div>
-            <div class="form-grid">
-              <label>Nama fasilitas umum<input id="facilityName" required placeholder="Contoh: Lampu jalan"></label>
-              <label>Jenis fasilitas<select id="facilityType" required><option value="">Pilih jenis fasilitas</option><option>Jalan</option><option>Lampu jalan</option><option>Jembatan</option><option>Taman</option><option>Drainase</option><option>Tempat sampah</option><option>Fasilitas olahraga</option><option>Lainnya</option></select></label>
-              <label class="full">Deskripsi kerusakan<textarea id="description" required rows="4" placeholder="Jelaskan kondisi kerusakan..."></textarea></label>
-              <label class="full"><span>Foto fasilitas yang rusak <span class="muted">(wajib)</span></span><input id="photo" type="file" accept="image/*" capture="environment" required></label>
-              <div class="full photo-preview-wrap" id="photoPreviewWrap" hidden><img id="photoPreview" alt="Pratinjau foto laporan"></div>
-            </div>
-            <div class="section-heading location-heading"><div><span class="step">02</span><h2>Lokasi kerusakan</h2></div><p>Gunakan GPS atau pilih titik pada peta.</p></div>
-            <div class="location-actions"><button type="button" class="btn btn-outline" id="locateBtn">◎ Gunakan lokasi saya</button><span class="hint" id="locationMessage">Izinkan akses lokasi pada browser, atau klik peta untuk menentukan titik.</span></div>
-            <div id="userMap" class="map" style="height:360px; width:100%;"></div>
-            <div id="mapStatus" style="font-size:13px; color:#555; margin-top:6px;">Memuat peta...</div>
-            <div class="form-grid location-fields">
-              <label class="full">Nama jalan / alamat<input id="streetAddress" required placeholder="Alamat akan terisi setelah lokasi dipilih"></label>
-              <label>Latitude<input id="latitude" required placeholder="Klik peta dulu"></label>
-              <label>Longitude<input id="longitude" required placeholder="Klik peta dulu"></label>
-            </div>
-            <div class="notice">Tanggal dan waktu laporan dicatat otomatis saat kamu menekan tombol kirim.</div>
-            <button class="btn btn-primary submit-btn" type="submit">Kirim laporan</button>
-            <div id="submitMessage" class="message" role="status"></div>
-          </form>
-        </div></div>
-      <div class="band band-sage" id="faq"><div class="wrap faq-wrap"><h2 class="sec-title">Pertanyaan umum</h2><details><summary>Apakah saya harus punya akun untuk melapor?</summary><p>Ya. Akun warga diperlukan.</p></details><details><summary>Bagaimana cara mengecek status laporan?</summary><p>Gunakan menu Cek Laporan.</p></details><details><summary>Siapa yang memutuskan laporan diperbaiki lebih dulu?</summary><p>Petugas + metode SAW.</p></details><details><summary>Mengapa lokasi saya tidak terbaca otomatis?</summary><p>Pastikan izin lokasi aktif. Kamu juga bisa klik peta.</p></details></div></div>
+        <div class="welcome-bar" id="welcomeBar"></div>
+        <div class="section-heading"><div><span class="step">01</span><h2>Informasi laporan</h2></div><p>Isi detail fasilitas yang rusak.</p></div>
+        <div class="form-grid">
+          <label>Nama fasilitas umum<input id="facilityName" required placeholder="Contoh: Lampu jalan, jembatan, bangku taman"></label>
+          <label>Jenis fasilitas<select id="facilityType" required><option value="">Pilih jenis fasilitas</option><option>Jalan</option><option>Lampu jalan</option><option>Jembatan</option><option>Taman</option><option>Drainase</option><option>Tempat sampah</option><option>Fasilitas olahraga</option><option>Lainnya</option></select></label>
+          <label class="full">Deskripsi kerusakan<textarea id="description" required rows="4" placeholder="Jelaskan kondisi kerusakan dan patokan lokasi, misalnya dekat simpang atau depan toko..."></textarea></label>
+          <label class="full"><span>Foto fasilitas yang rusak <span class="muted">(wajib)</span></span><input id="photo" type="file" accept="image/*" capture="environment" required><span class="hint">Gunakan foto yang jelas agar petugas dapat memeriksa kondisi fasilitas.</span></label>
+          <div class="full photo-preview-wrap" id="photoPreviewWrap" hidden><img id="photoPreview" alt="Pratinjau foto laporan"></div>
+        </div>
+        <div class="section-heading location-heading"><div><span class="step">02</span><h2>Lokasi kerusakan</h2></div><p>Gunakan GPS atau pilih titik pada peta.</p></div>
+        <div class="location-actions"><button type="button" class="btn btn-outline" id="locateBtn">◎ Gunakan lokasi saya</button><span class="hint" id="locationMessage">Izinkan akses lokasi pada browser, atau klik peta untuk menentukan titik.</span></div>
+        <div id="userMap" class="map"></div>
+        <div class="form-grid location-fields">
+          <label class="full">Nama jalan / alamat<input id="streetAddress" required placeholder="Alamat akan terisi setelah lokasi dipilih"></label>
+          <label>Latitude<input id="latitude" readonly required placeholder="Belum ditentukan"></label>
+          <label>Longitude<input id="longitude" readonly required placeholder="Belum ditentukan"></label>
+        </div>
+        <div class="notice">Tanggal dan waktu laporan dicatat otomatis saat kamu menekan tombol kirim.</div>
+        <button class="btn btn-primary submit-btn" type="submit">Kirim laporan</button>
+        <div id="submitMessage" class="message" role="status"></div>
+      </form>
+        </div>
+      </div>
+
+      <div class="band band-sage" id="faq">
+        <div class="wrap faq-wrap">
+          <h2 class="sec-title">Pertanyaan umum</h2>
+          <details><summary>Apakah saya harus punya akun untuk melapor?</summary><p>Ya. Akun warga diperlukan agar laporan dapat dipantau dan tidak disalahgunakan.</p></details>
+          <details><summary>Bagaimana cara mengecek status laporan?</summary><p>Gunakan menu Cek Laporan dan masukkan nomor laporan yang muncul setelah pengiriman, atau lihat daftar Laporan saya saat sudah masuk.</p></details>
+          <details><summary>Siapa yang memutuskan laporan diperbaiki lebih dulu?</summary><p>Petugas memeriksa setiap laporan, lalu sistem mengurutkan prioritas dengan metode SAW berdasarkan urgensi dan biaya sesuai anggaran yang tersedia.</p></details>
+          <details><summary>Mengapa lokasi saya tidak terbaca otomatis?</summary><p>Pastikan izin lokasi aktif dan situs dibuka lewat HTTPS atau localhost. Kamu juga bisa menentukan titik langsung dengan mengklik peta.</p></details>
+        </div>
+      </div>
     </section>
+
+    <!-- ============ MASUK / DAFTAR WARGA ============ -->
     <section id="page-auth" class="page wrap page-wrap" hidden>
-      <div class="auth-wrap panel"><div class="auth-side"><span class="eyebrow">Akun warga</span><h1>Satu akun,<br>semua laporanmu.</h1><p>Pantau laporan, lihat catatan petugas.</p><ul class="auth-points"><li>Riwayat laporan tersimpan rapi</li><li>Status diperbarui oleh petugas</li><li>Kata sandi disimpan dalam bentuk terenkripsi</li></ul></div>
-        <div class="auth-main"><div class="tabs"><button class="tab active" id="tabLogin" type="button">Masuk</button><button class="tab" id="tabRegister" type="button">Daftar</button></div>
-          <form id="userLoginForm"><label>Email<input id="loginEmail" type="email" required placeholder="nama@email.com"></label><label>Kata sandi<input id="loginPass" type="password" required placeholder="Masukkan kata sandi"></label><button class="btn btn-primary full-btn">Masuk</button><div id="userLoginMsg" class="message"></div></form>
-          <form id="userRegisterForm" hidden><label>Nama lengkap<input id="regName" required minlength="3" placeholder="Nama sesuai identitas"></label><label>Email<input id="regEmail" type="email" required placeholder="nama@email.com"></label><label>Kata sandi<input id="regPass" type="password" required minlength="8" placeholder="Minimal 8 karakter"></label><label>Ulangi kata sandi<input id="regPass2" type="password" required minlength="8" placeholder="Ketik ulang kata sandi"></label><button class="btn btn-primary full-btn">Buat akun</button><div id="userRegisterMsg" class="message"></div></form>
-        </div></div>
+      <div class="auth-wrap panel">
+        <div class="auth-side">
+          <span class="eyebrow">Akun warga</span>
+          <h1>Satu akun,<br>semua laporanmu.</h1>
+          <p>Pantau laporan, lihat catatan petugas, dan jadi bagian dari Medan yang lebih tertata.</p>
+          <ul class="auth-points"><li>Riwayat laporan tersimpan rapi</li><li>Status diperbarui oleh petugas</li><li>Kata sandi disimpan dalam bentuk terenkripsi</li></ul>
+        </div>
+        <div class="auth-main">
+          <div class="tabs" role="tablist"><button class="tab active" id="tabLogin" type="button">Masuk</button><button class="tab" id="tabRegister" type="button">Daftar</button></div>
+          <form id="userLoginForm" autocomplete="on">
+            <label>Email<input id="loginEmail" type="email" required placeholder="nama@email.com" autocomplete="email"></label>
+            <label>Kata sandi<input id="loginPass" type="password" required placeholder="Masukkan kata sandi" autocomplete="current-password"></label>
+            <button class="btn btn-primary full-btn">Masuk</button>
+            <div id="userLoginMsg" class="message"></div>
+          </form>
+          <form id="userRegisterForm" autocomplete="on" hidden>
+            <label>Nama lengkap<input id="regName" required minlength="3" placeholder="Nama sesuai identitas" autocomplete="name"></label>
+            <label>Email<input id="regEmail" type="email" required placeholder="nama@email.com" autocomplete="email"></label>
+            <label>Kata sandi<input id="regPass" type="password" required minlength="8" placeholder="Minimal 8 karakter" autocomplete="new-password"></label>
+            <label>Ulangi kata sandi<input id="regPass2" type="password" required minlength="8" placeholder="Ketik ulang kata sandi" autocomplete="new-password"></label>
+            <button class="btn btn-primary full-btn">Buat akun</button>
+            <div id="userRegisterMsg" class="message"></div>
+          </form>
+        </div>
+      </div>
     </section>
+
+    <!-- ============ CEK LAPORAN ============ -->
     <section id="page-track" class="page wrap page-wrap" hidden>
-      <div class="page-title"><span class="eyebrow">Transparansi laporan</span><h1>Cek status laporan</h1><p>Masukkan nomor laporan.</p></div>
+      <div class="page-title"><span class="eyebrow">Transparansi laporan</span><h1>Cek status laporan</h1><p>Masukkan nomor laporan yang muncul setelah pengiriman.</p></div>
       <div class="panel track-panel"><label>Nomor laporan<input id="trackingCode" placeholder="Contoh: RF-20261117-123456"></label><button class="btn btn-primary" id="trackBtn">Cari laporan</button></div>
       <div id="trackingResult"></div>
-      <div id="myReportsBox" class="panel admin-panel" hidden><div class="panel-head"><div><h2>Laporan saya</h2><p>Semua laporan yang kamu kirim.</p></div></div><div id="myReports" class="report-list"></div></div>
+      <div id="myReportsBox" class="panel admin-panel" hidden>
+        <div class="panel-head"><div><h2>Laporan saya</h2><p>Semua laporan yang kamu kirim dari akun ini.</p></div></div>
+        <div id="myReports" class="report-list"></div>
+      </div>
     </section>
+
+    <!-- ============ AREA PENGELOLA (tidak ada tombol di menu) ============ -->
     <section id="page-admin" class="page wrap page-wrap" hidden>
-      <div id="adminLogin" class="login-card panel"><span class="eyebrow">Akses terbatas</span><h1>Gerbang Pengelola</h1><p>Khusus petugas yang berwenang.</p><form id="loginForm"><label>Pengenal<input id="adminUser" required placeholder="Pengenal petugas"></label><label>Kata sandi<input id="adminPass" type="password" placeholder="Kata sandi" required></label><button class="btn btn-primary full-btn">Masuk</button><div id="loginMessage" class="message"></div></form></div>
+      <div id="adminLogin" class="login-card panel">
+        <span class="eyebrow">Akses terbatas</span><h1>Gerbang Pengelola</h1><p>Khusus petugas yang berwenang.</p>
+        <form id="loginForm" autocomplete="off"><label>Pengenal<input id="adminUser" required autocomplete="off" spellcheck="false" placeholder="Pengenal petugas"></label><label>Kata sandi<input id="adminPass" type="password" autocomplete="new-password" placeholder="Kata sandi" required></label><button class="btn btn-primary full-btn">Masuk</button><div id="loginMessage" class="message"></div></form>
+      </div>
+
       <div id="adminDashboard" hidden>
-        <div class="admin-heading"><div><span class="eyebrow">Panel pengelolaan</span><h1>Dashboard Pengelola</h1></div><button class="btn btn-outline" id="logoutBtn">Keluar</button></div>
-        <div class="stats-grid"><div class="stat-card"><span>Total laporan</span><strong id="statTotal">0</strong></div><div class="stat-card"><span>Dikirim</span><strong id="statSent">0</strong></div><div class="stat-card"><span>Diterima</span><strong id="statAccepted">0</strong></div><div class="stat-card"><span>Menunggu Prioritas</span><strong id="statWait">0</strong></div><div class="stat-card"><span>Diperbaiki</span><strong id="statFixed">0</strong></div><div class="stat-card"><span>Ditolak</span><strong id="statRejected">0</strong></div></div>
-        <div class="sim-bar"><span><b>Data simulasi:</b> 5 laporan A1-A5</span><div><button class="btn btn-outline small-btn" id="seedBtn" type="button">Muat data simulasi</button><button class="btn btn-outline small-btn" id="unseedBtn" type="button">Hapus data simulasi</button><button class="btn btn-primary small-btn" id="testFirebaseBtn" type="button" style="background:red;">TES FIREBASE</button></div></div>
-        <div class="panel admin-panel"><div class="panel-head"><div><h2>Laporan masyarakat</h2></div><select id="reportFilter"><option value="all">Semua laporan</option><option value="Dikirim">Dikirim</option><option value="Diterima">Diterima</option><option value="Menunggu Prioritas">Menunggu Prioritas</option><option value="Diperbaiki">Diperbaiki</option><option value="Ditolak">Ditolak</option></select></div><div id="adminReports" class="report-list"></div></div>
-        <div class="panel admin-panel"><div class="panel-head"><div><h2>Prioritas perbaikan - metode SAW</h2></div></div><div class="budget-row"><label>Anggaran tersedia (Rp)<input id="budgetInput" type="number" min="0" value="50000000"></label><button class="btn btn-primary" id="calculateBtn">Hitung Prioritas SAW</button></div><div class="formula-note"><b>Kriteria:</b> Urgensi 60% dan biaya 40%.</div><details class="scale-guide"><summary>Panduan skala urgensi (1-5)</summary><div id="scaleGuide"></div></details><div id="sawResults" class="saw-wrap"><p class="empty-state">Belum ada hasil perhitungan.</p></div></div>
-        <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2><p>Pin dari semua laporan yang masuk</p></div></div><div id="adminMap" class="map" style="height:360px; width:100%;"></div><div id="adminMapStatus" style="font-size:13px;color:#555;margin-top:6px;">Memuat peta admin...</div></div>
+        <div class="admin-heading"><div><span class="eyebrow">Panel pengelolaan</span><h1>Dashboard Pengelola</h1><p>Periksa laporan masuk sebelum menghitung prioritas perbaikan.</p></div><button class="btn btn-outline" id="logoutBtn">Keluar</button></div>
+        <div class="stats-grid">
+          <div class="stat-card"><span>Total laporan</span><strong id="statTotal">0</strong></div>
+          <div class="stat-card"><span>Dikirim</span><strong id="statSent">0</strong></div>
+          <div class="stat-card"><span>Diterima</span><strong id="statAccepted">0</strong></div>
+          <div class="stat-card"><span>Menunggu Prioritas</span><strong id="statWait">0</strong></div>
+          <div class="stat-card"><span>Diperbaiki</span><strong id="statFixed">0</strong></div>
+          <div class="stat-card"><span>Ditolak</span><strong id="statRejected">0</strong></div>
+        </div>
+        <div class="flow-legend" aria-label="Alur status laporan"><span class="status">Dikirim</span><i>&rarr;</i><span class="status accept">Diterima</span><i>&rarr;</i><span class="flow-branch"><span class="status wait">Menunggu Prioritas</span><em>/</em><span class="status done">Diperbaiki</span><em>/</em><span class="status reject">Ditolak</span></span></div>
+        <div class="sim-bar"><span><b>Data simulasi untuk screenshot jurnal:</b> 5 laporan (A1-A5, sama dengan Tabel 3 jurnal) dengan koordinat di Kota Medan.</span><div><button class="btn btn-outline small-btn" id="seedBtn" type="button">Muat data simulasi</button><button class="btn btn-outline small-btn" id="unseedBtn" type="button">Hapus data simulasi</button></div></div>
+        <div class="panel admin-panel">
+          <div class="panel-head"><div><h2>Laporan masyarakat</h2><p>Periksa foto, informasi, dan lokasi laporan.</p></div><select id="reportFilter"><option value="all">Semua laporan</option><option value="Dikirim">Dikirim</option><option value="Diterima">Diterima</option><option value="Menunggu Prioritas">Menunggu Prioritas</option><option value="Diperbaiki">Diperbaiki</option><option value="Ditolak">Ditolak</option></select></div>
+          <div id="adminReports" class="report-list"></div>
+        </div>
+        <div class="panel admin-panel">
+          <div class="panel-head"><div><h2>Prioritas perbaikan - metode SAW</h2><p>Laporan berstatus Diterima (beserta hasil hitung sebelumnya) dihitung ulang setiap tombol ditekan.</p></div></div>
+          <div class="budget-row"><label>Anggaran tersedia (Rp)<input id="budgetInput" type="number" min="0" value="50000000"></label><button class="btn btn-primary" id="calculateBtn">Hitung Prioritas SAW</button></div>
+          <div class="formula-note"><b>Kriteria:</b> Urgensi (benefit) 60% dan estimasi biaya (cost) 40%. Sistem mengurutkan nilai SAW dari tertinggi, lalu memilih berurutan sesuai anggaran tanpa melewati peringkat yang tidak muat.</div>
+          <details class="scale-guide"><summary>Panduan skala urgensi (1-5)</summary><div id="scaleGuide"></div></details>
+          <div id="sawResults" class="saw-wrap"><p class="empty-state">Belum ada hasil perhitungan. Terima laporan dan isi urgensi serta biaya terlebih dahulu.</p></div>
+        </div>
+        <div class="panel admin-panel"><div class="panel-head"><div><h2>Peta laporan</h2><p>Lokasi laporan yang memiliki koordinat.</p></div></div><div id="adminMap" class="map"></div></div>
       </div>
     </section>
   </main>
-  <div class="songket"></div>
-  <footer><div class="footer-landmarks">RepairFlow Medan</div><div class="footer-staff"><a href="#petugas">Masuk petugas</a></div><div><span id="copyMark">©</span> 2026 RepairFlow Medan</div></footer>
-  <div class="modal-backdrop" id="reviewModal" hidden><div class="modal panel"><button class="modal-close" id="closeReview">×</button><span class="eyebrow">Pemeriksaan laporan</span><h2>Detail laporan</h2><div id="reviewContent"></div><div id="reviewActions" class="review-actions"></div></div></div>
+
+  <div class="songket" aria-hidden="true"></div>
+  <footer>
+    <div class="footer-landmarks">RepairFlow Medan</div>
+    <div class="footer-staff"><a href="#petugas">Masuk petugas</a></div>
+    <div><span id="copyMark" title="">©</span> 2026 RepairFlow · Sistem Pelaporan dan Prioritas Perbaikan Fasilitas Umum Kota Medan</div>
+  </footer>
+
+  <div class="modal-backdrop" id="reviewModal" hidden>
+    <div class="modal panel">
+      <button class="modal-close" id="closeReview">×</button><span class="eyebrow">Pemeriksaan laporan</span><h2>Detail laporan</h2><div id="reviewContent"></div>
+      <div id="reviewActions" class="review-actions"></div>
+    </div>
+  </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
-  <script>try{document.getElementById("scaleGuide").innerHTML=urgencyGuideTable();}catch(e){}</script>
-  <script>
-  (function(){
-    var userMap=null, userMarker=null, tries=0;
-    function log(msg){ var s=document.getElementById("mapStatus"); if(s) s.textContent=msg; }
-    function buatUserMap(){
-      var el=document.getElementById("userMap"); if(!el) return false;
-      if(typeof L==="undefined"){ log("Leaflet belum ke-load, nyoba lagi..."); return false; }
-      var form=document.getElementById("reportForm"); if(form && form.hidden){ log("Menunggu login dulu..."); return false; }
-      if(el.offsetHeight===0){ el.style.height="360px"; }
-      if(userMap){ try{userMap.invalidateSize();}catch(e){} log("Peta sudah jalan! Klik peta untuk pilih lokasi."); return true; }
-      try{
-        userMap=L.map("userMap").setView([3.5952,98.6722],13);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(userMap);
-        userMap.on("click",function(e){ var lat=e.latlng.lat, lng=e.latlng.lng; if(userMarker) userMap.removeLayer(userMarker); userMarker=L.marker([lat,lng]).addTo(userMap); var la=document.getElementById("latitude"), lo=document.getElementById("longitude"); if(la) la.value=lat.toFixed(6); if(lo) lo.value=lng.toFixed(6); var ad=document.getElementById("streetAddress"); if(ad && !ad.value) ad.value="Medan, Lat "+lat.toFixed(4)+", Lng "+lng.toFixed(4); log("Lokasi dipilih: "+lat.toFixed(6)+", "+lng.toFixed(6)); });
-        setTimeout(function(){ try{userMap.invalidateSize();}catch(e){} },400);
-        log("Peta berhasil dimuat! Klik peta untuk pilih lokasi."); return true;
-      }catch(e){ log("Gagal bikin peta: "+e.message); return false; }
-    }
-    var timer=setInterval(function(){ tries++; if(buatUserMap()) clearInterval(timer); if(tries>30) clearInterval(timer); },1000);
-    document.addEventListener("click", function(e){ if(e.target && (e.target.textContent.includes("Buat laporan") || e.target.textContent.includes("Masuk"))){ setTimeout(buatUserMap,500); } });
-    document.addEventListener("click", function(e){ if(e.target && e.target.id==="locateBtn"){ if(!navigator.geolocation){ alert("GPS tidak didukung"); return; } navigator.geolocation.getCurrentPosition(function(pos){ var lat=pos.coords.latitude, lng=pos.coords.longitude; if(userMap){ userMap.setView([lat,lng],16); if(userMarker) userMap.removeLayer(userMarker); userMarker=L.marker([lat,lng]).addTo(userMap); } document.getElementById("latitude").value=lat.toFixed(6); document.getElementById("longitude").value=lng.toFixed(6); log("GPS ketemu: "+lat.toFixed(6)); }, function(){ alert("Gagal GPS, klik peta aja!"); }); } });
-  })();
-  </script>
-  <script>
-  (function(){
-    var adminMap=null, adminMarkers=[];
-    function buatAdminMap(){
-      var box=document.getElementById("adminDashboard");
-      var el=document.getElementById("adminMap");
-      var st=document.getElementById("adminMapStatus");
-      if(!box || box.hidden) return;
-      if(!el || typeof L==="undefined") return;
-      el.style.height="360px";
-      if(!adminMap){
-        try{
-          adminMap=L.map("adminMap").setView([3.5952,98.6722],12);
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(adminMap);
-        }catch(e){ if(st) st.textContent="Gagal: "+e.message; return; }
-      }
-      setTimeout(function(){
-        try{ adminMap.invalidateSize(); }catch(e){}
-        adminMarkers.forEach(function(m){ try{adminMap.removeLayer(m);}catch(e){} });
-        adminMarkers=[];
-        var data=[];
-        try{ data=JSON.parse(localStorage.getItem("repairflow_public_reports_v1")||"[]"); }catch(e){}
-        if(!data.length) data=[
-          {facilityName:"Jalan Berlubang",lat:3.5952,lng:98.6722,status:"Dikirim",streetAddress:"Jl. Sei Deli",code:"A1"},
-          {facilityName:"Lampu Jalan Mati",lat:3.6001,lng:98.6788,status:"Diterima",streetAddress:"Jl. Setia Budi",code:"A2"}
-        ];
-        var n=0;
-        data.forEach(function(r){
-          if(!r.lat || !r.lng) return;
-          var m=L.marker([r.lat,r.lng]).addTo(adminMap);
-          m.bindPopup("<b>"+(r.facilityName||"Laporan")+"</b><br>"+(r.streetAddress||"")+"<br>Status: "+(r.status||"")+"<br>Kode: "+(r.code||""));
-          adminMarkers.push(m); n++;
-        });
-        if(st) st.textContent="Peta admin jalan! "+n+" pin laporan.";
-      },500);
-    }
-    document.addEventListener("click", function(e){
-      var t=e.target && e.target.textContent ? e.target.textContent : "";
-      if(t.includes("Masuk") || t.includes("petugas") || t.includes("Masuk petugas")){
-        setTimeout(buatAdminMap,800); setTimeout(buatAdminMap,2000);
-      }
-    });
-    document.addEventListener("submit", function(e){
-      if(e.target && e.target.id==="loginForm"){
-        setTimeout(buatAdminMap,1000); setTimeout(buatAdminMap,2500); setTimeout(buatAdminMap,4000);
-      }
-    });
-    setInterval(function(){
-      var box=document.getElementById("adminDashboard");
-      if(box && !box.hidden && !adminMap) buatAdminMap();
-    },2000);
-  })();
-  </script>
-  <script>
-  document.addEventListener("click", async (e)=>{
-    if(e.target && e.target.id==="testFirebaseBtn"){
-      alert("Mencoba kirim ke Firebase...");
-      for(let i=0;i<20;i++){ if(window.db && window.fb) break; await new Promise(r=>setTimeout(r,200)); }
-      if(!window.db){ alert("GAGAL: window.db KOSONG!"); return; }
-      try{
-        const ref = await window.fb.addDoc(window.fb.collection(window.db, "orders"), { code:"TES-"+Date.now(), facilityName:"TES TOMBOL", facilityType:"Jalan", description:"tes", streetAddress:"Medan", lat:3.59, lng:98.67, status:"Dikirim", urgency:3, cost:0, createdAt:new Date().toISOString(), userEmail:"tes@test.com" });
-        alert("BERHASIL! ID: "+ref.id);
-      }catch(err){ alert("GAGAL FIREBASE: "+err.message); }
-    }
-  });
-  </script>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    const firebaseConfig = { apiKey: "AIzaSyDCy3_3pioWmqKezcR0vpbqDWD5WL7DC_I", authDomain: "repairflow-medan-d495f.firebaseapp.com", projectId: "repairflow-medan-d495f", storageBucket: "repairflow-medan-d495f.firebasestorage.app", messagingSenderId: "286395815980", appId: "1:286395815980:web:d0b9e2d083410306885989" };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    window.db = db; window.fb = { collection, addDoc, getDocs };
-    console.log("Firebase nyambung!");
-  </script>
+  <script>document.getElementById("scaleGuide").innerHTML=urgencyGuideTable();</script>
 </body>
 </html>
