@@ -1,4 +1,4 @@
-// ===== REPAIRFLOW - FULL + FIREBASE (Sesuai index.html kamu) =====
+// ===== REPAIRFLOW - FULL + FIREBASE + PETA FIX =====
 const STORAGE_KEY = "repairflow_public_reports_v1";
 const USERS_KEY = "repairflow_users_v2";
 const SESSION_KEY = "repairflow_session_v2";
@@ -8,7 +8,6 @@ const STAFF_HASH = "ea0e0ef38d4a6fb6ed452c2ae476b6fe95f2ce8dd514c59c0c77cce70231
 const ST = {SENT:"Dikirim", ACC:"Diterima", WAIT:"Menunggu Prioritas", FIX:"Diperbaiki", REJ:"Ditolak"};
 const ST_ALL = [ST.SENT, ST.ACC, ST.WAIT, ST.FIX, ST.REJ];
 
-// Data simulasi jurnal A1-A5
 const SIM_DATA = [
   {code:"A1", facilityName:"Jalan Berlubang", facilityType:"Jalan", description:"Jalan berlubang di Jl. Sei Deli", streetAddress:"Jl. Sei Deli No.12, Medan", lat:3.5952, lng:98.6722, status:"Dikirim", createdAt:"2026-01-10", urgency:4, cost:5000000, photo:""},
   {code:"A2", facilityName:"Lampu Jalan Mati", facilityType:"Lampu jalan", description:"Lampu padam", streetAddress:"Jl. Setia Budi No.45, Medan", lat:3.6001, lng:98.6788, status:"Diterima", createdAt:"2026-01-11", urgency:3, cost:2000000, photo:""},
@@ -29,7 +28,7 @@ let reports = loadReports();
 let currentUser = null;
 try{ currentUser = JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }catch(e){}
 
-// ===== NAVIGASI - HARUS ADA BIAR MENU JALAN =====
+// ===== NAVIGASI =====
 function showPage(name, sub){
   document.querySelectorAll(".page").forEach(p=>p.hidden=true);
   const map = {report:"page-report", auth:"page-auth", track:"page-track", admin:"page-admin"};
@@ -45,7 +44,10 @@ function showPage(name, sub){
     if(document.getElementById("userLoginForm")) document.getElementById("userLoginForm").hidden = !isLogin;
     if(document.getElementById("userRegisterForm")) document.getElementById("userRegisterForm").hidden = isLogin;
   }
-  updateGate(); renderAll(); window.scrollTo(0,0);
+  updateGate(); renderAll();
+  if(name==="report") setTimeout(initUserMap, 300);
+  if(name==="admin") setTimeout(initAdminMap, 300);
+  window.scrollTo(0,0);
 }
 function goToForm(){ showPage("report"); setTimeout(()=>document.getElementById("formBand")?.scrollIntoView({behavior:"smooth"}),100); }
 function scrollToSec(id){ document.getElementById(id)?.scrollIntoView({behavior:"smooth"}); }
@@ -53,13 +55,9 @@ function urgencyGuideTable(){
   return `<table><tr><th>Skala</th><th>Arti</th></tr><tr><td>1</td><td>Tidak mendesak</td></tr><tr><td>2</td><td>Kurang mendesak</td></tr><tr><td>3</td><td>Cukup mendesak</td></tr><tr><td>4</td><td>Mendesak</td></tr><tr><td>5</td><td>Sangat mendesak</td></tr></table>`;
 }
 
-// ===== FIREBASE - PAKAI YANG UDAH ADA DI index.html =====
+// ===== FIREBASE - PAKAI window.db DARI index.html =====
 async function kirimKeFirebase(laporan){
-  // Tunggu Firebase dari index.html (window.db & window.fb)
-  for(let i=0;i<20;i++){
-    if(window.db && window.fb) break;
-    await new Promise(r=>setTimeout(r,200));
-  }
+  for(let i=0;i<20;i++){ if(window.db && window.fb) break; await new Promise(r=>setTimeout(r,200)); }
   if(!window.db || !window.fb){ console.log("Firebase belum siap"); return; }
   try{
     await window.fb.addDoc(window.fb.collection(window.db, "orders"), {
@@ -78,12 +76,50 @@ async function ambilDariFirebase(){
     const snap = await window.fb.getDocs(window.fb.collection(window.db, "orders"));
     snap.forEach(doc=>{
       const d = doc.data();
-      if(!reports.some(r=>r.code===d.code)){
-        reports.unshift({...d, _fbId: doc.id});
-      }
+      if(!reports.some(r=>r.code===d.code)){ reports.unshift({...d, _fbId: doc.id}); }
     });
-    saveReports(); renderAll();
+    saveReports(); renderAll(); initAdminMap();
   }catch(e){ console.log("Gagal ambil:", e); }
+}
+
+// ===== PETA - LEAFLET FIX =====
+let userMap = null, userMarker = null, adminMap = null, adminMarkers = [];
+function initUserMap(){
+  const el = document.getElementById("userMap");
+  if(!el || typeof L === "undefined") return;
+  if(userMap){ setTimeout(()=>userMap.invalidateSize(), 200); return; }
+  userMap = L.map("userMap").setView([3.5952, 98.6722], 13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution:"© OpenStreetMap"}).addTo(userMap);
+  userMap.on("click", (e)=>{
+    const lat = e.latlng.lat, lng = e.latlng.lng;
+    if(userMarker) userMap.removeLayer(userMarker);
+    userMarker = L.marker([lat, lng]).addTo(userMap);
+    const latEl = document.getElementById("latitude");
+    const lngEl = document.getElementById("longitude");
+    if(latEl) latEl.value = lat.toFixed(6);
+    if(lngEl) lngEl.value = lng.toFixed(6);
+    const addr = document.getElementById("streetAddress");
+    if(addr && !addr.value) addr.value = "Medan, Lat " + lat.toFixed(4) + ", Lng " + lng.toFixed(4);
+    const msg = document.getElementById("locationMessage");
+    if(msg) msg.textContent = "Lokasi dipilih: " + lat.toFixed(6) + ", " + lng.toFixed(6);
+  });
+  setTimeout(()=>userMap.invalidateSize(), 300);
+}
+function initAdminMap(){
+  const el = document.getElementById("adminMap");
+  if(!el || typeof L === "undefined") return;
+  if(!adminMap){
+    adminMap = L.map("adminMap").setView([3.5952, 98.6722], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution:"© OpenStreetMap"}).addTo(adminMap);
+  }
+  adminMarkers.forEach(m=>adminMap.removeLayer(m)); adminMarkers=[];
+  reports.forEach(r=>{
+    if(r.lat && r.lng){
+      const mk = L.marker([r.lat, r.lng]).addTo(adminMap).bindPopup(`<b>${r.code} - ${r.facilityName}</b><br>${r.streetAddress}<br>Status: ${r.status}`);
+      adminMarkers.push(mk);
+    }
+  });
+  setTimeout(()=>adminMap.invalidateSize(), 300);
 }
 
 // ===== RENDER =====
@@ -120,8 +156,6 @@ function renderAll(){
   const set = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
   set("statTotal", total); set("statSent", c[ST.SENT]||0); set("statAccepted", c[ST.ACC]||0);
   set("statWait", c[ST.WAIT]||0); set("statFixed", c[ST.FIX]||0); set("statRejected", c[ST.REJ]||0);
-
-  // Admin list
   const adminBox = document.getElementById("adminReports");
   if(adminBox){
     const filter = document.getElementById("reportFilter")?.value || "all";
@@ -131,7 +165,6 @@ function renderAll(){
       <button class="btn btn-outline small-btn" onclick="openReview('${r.code}')">Periksa</button></div>
     `).join("") : `<p class="empty-state">Belum ada laporan.</p>`;
   }
-  // Laporan saya
   const myBox = document.getElementById("myReports");
   if(myBox && currentUser){
     const mine = reports.filter(r=>r.userEmail===currentUser.email);
@@ -171,20 +204,47 @@ async function pbkdf2(str, salt, iter){
 // ===== INIT =====
 document.addEventListener("DOMContentLoaded", ()=>{
   updateGate(); renderAll();
-  setTimeout(ambilDariFirebase, 1000);
+  setTimeout(()=>{ initUserMap(); ambilDariFirebase(); }, 800);
 
   document.getElementById("closeReview")?.addEventListener("click", ()=>document.getElementById("reviewModal").hidden=true);
   document.getElementById("tabLogin")?.addEventListener("click", ()=>showPage("auth","login"));
   document.getElementById("tabRegister")?.addEventListener("click", ()=>showPage("auth","register"));
   document.getElementById("reportFilter")?.addEventListener("change", renderAll);
-  document.getElementById("seedBtn")?.addEventListener("click", ()=>{ reports=[...SIM_DATA]; saveReports(); renderAll(); });
-  document.getElementById("unseedBtn")?.addEventListener("click", ()=>{ reports=reports.filter(r=>!SIM_DATA.some(s=>s.code===r.code)); saveReports(); renderAll(); });
+  document.getElementById("seedBtn")?.addEventListener("click", ()=>{ reports=[...SIM_DATA]; saveReports(); renderAll(); initAdminMap(); });
+  document.getElementById("unseedBtn")?.addEventListener("click", ()=>{ reports=reports.filter(r=>!SIM_DATA.some(s=>s.code===r.code)); saveReports(); renderAll(); initAdminMap(); });
   document.getElementById("trackBtn")?.addEventListener("click", ()=>{
     const code = document.getElementById("trackingCode")?.value.trim();
     const r = reports.find(x=>x.code===code);
     document.getElementById("trackingResult").innerHTML = r ? `<div class="panel"><b>${r.code}</b> - ${r.facilityName}<br>Status: ${r.status}<br>${r.streetAddress}</div>` : `<p>Tidak ditemukan.</p>`;
   });
   document.getElementById("logoutBtn")?.addEventListener("click", ()=>{ document.getElementById("adminDashboard").hidden=true; document.getElementById("adminLogin").hidden=false; showPage("report"); });
+
+  // Tombol GPS
+  document.getElementById("locateBtn")?.addEventListener("click", ()=>{
+    if(!navigator.geolocation){ alert("GPS tidak didukung"); return; }
+    navigator.geolocation.getCurrentPosition((pos)=>{
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      if(userMap){
+        userMap.setView([lat, lng], 16);
+        if(userMarker) userMap.removeLayer(userMarker);
+        userMarker = L.marker([lat, lng]).addTo(userMap);
+      }
+      const latEl=document.getElementById("latitude"), lngEl=document.getElementById("longitude");
+      if(latEl) latEl.value = lat.toFixed(6);
+      if(lngEl) lngEl.value = lng.toFixed(6);
+      document.getElementById("locationMessage").textContent = "Lokasi GPS ditemukan!";
+    }, ()=>alert("Gagal ambil GPS, klik peta aja ya"));
+  });
+
+  // Foto preview
+  document.getElementById("photo")?.addEventListener("change", (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const url = URL.createObjectURL(f);
+    const wrap = document.getElementById("photoPreviewWrap");
+    const img = document.getElementById("photoPreview");
+    if(wrap) wrap.hidden=false;
+    if(img) img.src=url;
+  });
 
   // Auth warga
   document.getElementById("userRegisterForm")?.addEventListener("submit", (e)=>{
@@ -204,12 +264,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
     currentUser={name:u.name,email:u.email}; localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
     updateGate(); showPage("report");
   });
-  // Admin login
   document.getElementById("loginForm")?.addEventListener("submit", async (e)=>{
     e.preventDefault();
     const user=document.getElementById("adminUser").value, pass=document.getElementById("adminPass").value;
     const h = await pbkdf2(user+"\0"+pass, STAFF_SALT, STAFF_ITER);
-    if(h===STAFF_HASH){ document.getElementById("adminLogin").hidden=true; document.getElementById("adminDashboard").hidden=false; renderAll(); }
+    if(h===STAFF_HASH){ document.getElementById("adminLogin").hidden=true; document.getElementById("adminDashboard").hidden=false; renderAll(); setTimeout(initAdminMap, 300); }
     else document.getElementById("loginMessage").textContent="Pengenal / kata sandi salah";
   });
   document.getElementById("calculateBtn")?.addEventListener("click", ()=>{
@@ -227,7 +286,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
     document.getElementById("sawResults").innerHTML = html || "<p>Belum ada laporan Diterima.</p>";
   });
 
-  // FORM LAPORAN - INI YANG KIRIM KE FIREBASE
+  // FORM LAPORAN
   const form = document.getElementById("reportForm");
   if(form){
     form.addEventListener("submit", async (e)=>{
@@ -246,13 +305,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
         createdAt: new Date().toISOString(),
         userEmail: currentUser?.email || "anonim"
       };
-      reports.unshift(baru); saveReports(); renderAll();
-      await kirimKeFirebase(baru); // <-- MASUK FIREBASE DI SINI
+      reports.unshift(baru); saveReports(); renderAll(); initAdminMap();
+      await kirimKeFirebase(baru);
       document.getElementById("submitMessage").textContent = "Berhasil! Nomor laporan: " + code + " (Sudah masuk Firebase)";
       form.reset();
       alert("Berhasil! Nomor: " + code);
     });
   }
-  // Footer staff link
   document.querySelector(".footer-staff a")?.addEventListener("click", (e)=>{ e.preventDefault(); showPage("admin"); });
 });
